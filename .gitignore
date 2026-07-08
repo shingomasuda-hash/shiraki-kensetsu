@@ -25,3 +25,11 @@ yarn-error.log*
 
 # Vercel
 .vercel
+
+# Playwright
+/playwright-report/
+/test-results/
+/blob-report/
+
+# Python build tmp
+.design_build_tmp/
