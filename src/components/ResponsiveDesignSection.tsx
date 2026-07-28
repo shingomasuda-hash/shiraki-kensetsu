@@ -1,8 +1,12 @@
 import { Fragment } from "react";
 import { ClickArea } from "@/components/ClickArea";
+import { ContactFormOverlay } from "@/components/ContactFormOverlay";
+import { VideoEmbed } from "@/components/VideoEmbed";
 import { clickAreas } from "@/config/clickAreas";
 import { externalLinkMap, internalLinkMap } from "@/config/linkMap";
 import { generatedImageSizes } from "@/config/generatedImageSizes";
+import { siteLinks, urlByEnvKey } from "@/config/links";
+import { videoSlots } from "@/config/videos";
 import type { SectionDefinition } from "@/types/design";
 
 type ResponsiveDesignSectionProps = {
@@ -18,12 +22,18 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
   }
 
   const areas = clickAreas.filter((area) => area.sectionId === section.id);
+  const videos = videoSlots.filter((slot) => slot.sectionId === section.id);
   const isFirstView = Boolean(section.isFirstView);
 
   return (
     <section id={section.id} className="design-section" aria-label={section.label}>
       <picture>
-        <source media="(max-width: 767px)" srcSet={sizes.sp.file} width={sizes.sp.width} height={sizes.sp.height} />
+        <source
+          media="(max-width: 767px)"
+          srcSet={sizes.sp.file}
+          width={sizes.sp.width}
+          height={sizes.sp.height}
+        />
         <img
           src={sizes.pc.file}
           width={sizes.pc.width}
@@ -36,35 +46,68 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
         />
       </picture>
 
+      {videos.map((slot) => (
+        <Fragment key={slot.id}>
+          <VideoEmbed
+            id={slot.id}
+            label={slot.label}
+            url={urlByEnvKey[slot.envKey] ?? null}
+            placement={slot.pc}
+            device="pc"
+            debug={debug}
+          />
+          <VideoEmbed
+            id={slot.id}
+            label={slot.label}
+            url={urlByEnvKey[slot.envKey] ?? null}
+            placement={slot.sp}
+            device="sp"
+            debug={debug}
+          />
+        </Fragment>
+      ))}
+
+      {section.id === "contact" ? (
+        <ContactFormOverlay endpoint={siteLinks.contactEndpoint} debug={debug} />
+      ) : null}
+
       {areas.map((area) => {
         const href =
           area.type === "internal"
-            ? (area.internalTarget ? internalLinkMap[area.internalTarget] : null)
-            : (area.externalLinkKey ? externalLinkMap[area.externalLinkKey] : null);
-        const external = area.type !== "internal";
+            ? area.internalTarget
+              ? internalLinkMap[area.internalTarget]
+              : null
+            : area.externalLinkKey
+              ? externalLinkMap[area.externalLinkKey]
+              : null;
+        const external = area.type === "external";
 
         return (
           <Fragment key={area.id}>
-            <ClickArea
-              id={area.id}
-              label={area.label}
-              href={href}
-              rect={area.pc}
-              device="pc"
-              external={external}
-              linkType={area.type}
-              debug={debug}
-            />
-            <ClickArea
-              id={area.id}
-              label={area.label}
-              href={href}
-              rect={area.sp}
-              device="sp"
-              external={external}
-              linkType={area.type}
-              debug={debug}
-            />
+            {area.pc ? (
+              <ClickArea
+                id={area.id}
+                label={area.label}
+                href={href}
+                rect={area.pc}
+                device="pc"
+                external={external}
+                linkType={area.type}
+                debug={debug}
+              />
+            ) : null}
+            {area.sp ? (
+              <ClickArea
+                id={area.id}
+                label={area.label}
+                href={href}
+                rect={area.sp}
+                device="sp"
+                external={external}
+                linkType={area.type}
+                debug={debug}
+              />
+            ) : null}
           </Fragment>
         );
       })}

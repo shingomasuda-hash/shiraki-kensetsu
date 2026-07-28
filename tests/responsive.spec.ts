@@ -4,6 +4,22 @@ const SP_WIDTHS = [320, 360, 375, 390, 393, 414, 430, 600, 767];
 const PC_WIDTHS = [768, 900, 1024, 1366, 1440, 1920];
 const ALL_WIDTHS = [...SP_WIDTHS, ...PC_WIDTHS];
 
+const SECTION_IDS = [
+  "hero",
+  "job",
+  "career",
+  "advantage",
+  "for-you",
+  "numbers",
+  "routine",
+  "message",
+  "requirements",
+  "flow",
+  "faq",
+  "contact",
+  "footer",
+];
+
 test.describe("横スクロールが発生しないこと", () => {
   for (const width of ALL_WIDTHS) {
     test(`width=${width}px`, async ({ page }) => {
@@ -43,24 +59,6 @@ test.describe("PC/SP画像の自動切り替え", () => {
       expect(currentSrc).not.toContain("/design/sp/");
     });
   }
-});
-
-test.describe("デザイン幅の上限・下限", () => {
-  test("430px以下ではSPラッパーの表示幅が430pxを超えない", async ({ page }) => {
-    await page.setViewportSize({ width: 400, height: 900 });
-    await page.goto("/");
-    const box = await page.locator('[data-testid="design-wrapper"]').boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.width).toBeLessThanOrEqual(430);
-  });
-
-  test("1920pxでもPCラッパーの表示幅が1366pxを超えない", async ({ page }) => {
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await page.goto("/");
-    const box = await page.locator('[data-testid="design-wrapper"]').boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.width).toBeLessThanOrEqual(1366);
-  });
 
   test("767pxではSP画像、768pxではPC画像に切り替わる（境界確認）", async ({ page }) => {
     await page.setViewportSize({ width: 767, height: 900 });
@@ -72,30 +70,49 @@ test.describe("デザイン幅の上限・下限", () => {
 
     await page.setViewportSize({ width: 768, height: 900 });
     await page.reload();
-    currentSrc = await page.locator("#hero picture img").evaluate((el) => (el as HTMLImageElement).currentSrc);
+    currentSrc = await page
+      .locator("#hero picture img")
+      .evaluate((el) => (el as HTMLImageElement).currentSrc);
     expect(currentSrc).toContain("/design/pc/");
   });
 });
 
-test.describe("セクション構成", () => {
-  const sectionIds = [
-    "hero",
-    "job",
-    "career",
-    "advantage",
-    "for-you",
-    "numbers",
-    "routine",
-    "message",
-    "requirements",
-    "flow",
-    "faq",
-    "entry",
-  ];
-
-  test("全12セクションがDOMに存在する", async ({ page }) => {
+test.describe("デザイン幅の上限（原寸を超えて引き伸ばさない）", () => {
+  test("SPは375pxを超えて拡大されない", async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 900 });
     await page.goto("/");
-    for (const id of sectionIds) {
+    const box = await page.locator('[data-testid="design-wrapper"]').boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeLessThanOrEqual(375);
+  });
+
+  test("PCは1024pxを超えて拡大されない", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/");
+    const box = await page.locator('[data-testid="design-wrapper"]').boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeLessThanOrEqual(1024);
+  });
+
+  test("画像の縦横比が元データと一致する（hero/PC）", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 900 });
+    await page.goto("/");
+    const ratio = await page.locator("#hero picture img").evaluate((el) => {
+      const img = el as HTMLImageElement;
+      const rect = img.getBoundingClientRect();
+      return {
+        rendered: rect.width / rect.height,
+        natural: img.naturalWidth / img.naturalHeight,
+      };
+    });
+    expect(Math.abs(ratio.rendered - ratio.natural)).toBeLessThan(0.01);
+  });
+});
+
+test.describe("セクション構成", () => {
+  test("全13セクションがDOMに存在する", async ({ page }) => {
+    await page.goto("/");
+    for (const id of SECTION_IDS) {
       await expect(page.locator(`#${id}`)).toHaveCount(1);
     }
   });

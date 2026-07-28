@@ -10,35 +10,37 @@ export type SectionId =
   | "requirements"
   | "flow"
   | "faq"
-  | "entry";
+  | "contact"
+  | "footer";
 
 export type SectionDefinition = {
   id: SectionId;
   /** public/design 配下のファイル名（拡張子なし） */
   file: string;
-  /** セクション見出し（デバッグ・aria-label用の日本語ラベル） */
+  /** セクション名（aria-label／デバッグ表示用） */
   label: string;
   /** ファーストビューか否か（読み込み優先度の判定に使用） */
   isFirstView?: boolean;
 };
 
 export type ExternalLinkKey =
+  // ヘッダーナビ・ロゴ
   | "corporate"
-  | "jobDetails"
-  | "casualInterview"
-  | "companyVideo"
-  | "employeeInterviewVideo"
-  | "dailyRoutineVideo"
-  | "presidentVideo";
+  | "companyInfo"
+  | "business"
+  | "works"
+  | "recruit"
+  // フッター
+  | "presidentMessage"
+  | "about"
+  | "offices"
+  | "jobList"
+  | "benefits"
+  | "employeeInterview"
+  | "privacyPolicy"
+  | "sitemap";
 
-export type InternalLinkKey =
-  | "job"
-  | "career"
-  | "advantage"
-  | "forYou"
-  | "routine"
-  | "requirements"
-  | "entry";
+export type InternalLinkKey = "numbers" | "requirements" | "contact";
 
 export type RelativeRect = {
   /** セクション画像の左端からの割合(%) */
@@ -51,7 +53,7 @@ export type RelativeRect = {
   height: number;
 };
 
-export type ClickAreaType = "internal" | "external" | "video";
+export type ClickAreaType = "internal" | "external";
 
 export type ClickArea = {
   id: string;
@@ -60,6 +62,37 @@ export type ClickArea = {
   type: ClickAreaType;
   internalTarget?: InternalLinkKey;
   externalLinkKey?: ExternalLinkKey;
+  /** PC専用要素の場合は sp を省略（逆も同様） */
+  pc?: RelativeRect;
+  sp?: RelativeRect;
+};
+
+/** 動画枠。デザイン上の枠を実測したピクセル寸法も持ち、cover表示の計算に使う。 */
+export type VideoPlacement = RelativeRect & {
+  /** デザイン上の枠の実寸(px)。動画をはみ出させて枠を埋める計算に使用する。 */
+  boxWidth: number;
+  boxHeight: number;
+};
+
+export type VideoSlot = {
+  id: string;
+  sectionId: SectionId;
+  label: string;
+  envKey: string;
+  pc: VideoPlacement;
+  sp: VideoPlacement;
+};
+
+export type FormFieldName = "name" | "kana" | "tel" | "email" | "message";
+
+export type FormFieldDefinition = {
+  name: FormFieldName;
+  label: string;
+  /** input の type。textarea の場合は multiline を true にする */
+  inputType: "text" | "tel" | "email";
+  multiline?: boolean;
+  autoComplete?: string;
+  required: boolean;
   pc: RelativeRect;
   sp: RelativeRect;
 };

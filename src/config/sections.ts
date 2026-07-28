@@ -12,5 +12,6 @@ export const sections: SectionDefinition[] = [
   { id: "requirements", file: "09-requirements", label: "募集要項" },
   { id: "flow", file: "10-flow", label: "応募の流れ" },
   { id: "faq", file: "11-faq", label: "よくある質問" },
-  { id: "entry", file: "12-entry-footer", label: "エントリーCTA・フッター" },
+  { id: "contact", file: "12-contact", label: "お問い合わせ" },
+  { id: "footer", file: "13-footer", label: "フッター" },
 ];

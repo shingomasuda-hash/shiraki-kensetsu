@@ -71,19 +71,25 @@ img {
   vertical-align: bottom;
 }
 
+/*
+ * デザイン元データは等倍(PC 1024px / SP 375px)のため、
+ * 拡大せず原寸を上限として表示し、文字のにじみを防ぐ。
+ * 2倍(PC 2048px / SP 750px)の書き出しに差し替えた場合は
+ * ここの max-width を 1366px / 430px などへ引き上げられる。
+ */
 @media (max-width: 767px) {
   .design-wrapper {
-    max-width: 430px;
+    max-width: 375px;
   }
 }
 
 @media (min-width: 768px) {
   .design-wrapper {
-    max-width: 1366px;
+    max-width: 1024px;
   }
 }
 
-/* 透明クリック領域 */
+/* ---------- 透明クリック領域 ---------- */
 .click-area {
   position: absolute;
   display: block;
@@ -111,7 +117,129 @@ img {
   }
 }
 
-/* デバッグモード（?debugLinks=true） */
+/* ---------- 動画埋め込み ---------- */
+.video-embed {
+  position: absolute;
+  z-index: 15;
+  overflow: hidden;
+  line-height: 0;
+  background: #6f6767;
+}
+
+.video-embed__media {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border: 0;
+  display: block;
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .video-embed--pc {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .video-embed--sp {
+    display: none;
+  }
+}
+
+/* ---------- お問い合わせフォーム（画像の上に重ねる） ---------- */
+.contact-form {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  margin: 0;
+  padding: 0;
+}
+
+.contact-form__field-group {
+  display: contents;
+}
+
+.contact-form__input {
+  position: absolute;
+  margin: 0;
+  padding: 0 clamp(8px, 1.2vw, 16px);
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #1f2937;
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.contact-form__input:focus-visible {
+  outline: 2px solid #0f7a3d;
+  outline-offset: 1px;
+}
+
+textarea.contact-form__input {
+  padding-top: clamp(6px, 1vw, 12px);
+}
+
+.contact-form__submit {
+  position: absolute;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.contact-form__submit:disabled {
+  cursor: not-allowed;
+}
+
+.contact-form__submit:focus-visible {
+  outline: 3px solid #0f7a3d;
+  outline-offset: 2px;
+}
+
+.contact-form__status {
+  position: absolute;
+  left: 50%;
+  bottom: 2%;
+  transform: translateX(-50%);
+  margin: 0;
+  padding: 0 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #ffffff;
+  text-align: center;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+
+.contact-form__status:empty {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .contact-form__input--pc,
+  .contact-form__submit--pc {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .contact-form__input--sp,
+  .contact-form__submit--sp {
+    display: none;
+  }
+}
+
+/* ---------- デバッグモード（?debugLinks=true） ---------- */
 .debug-links .click-area {
   background: rgba(255, 0, 0, 0.28);
   outline: 2px solid red;
@@ -128,12 +256,12 @@ img {
   outline-color: orange;
 }
 
-.debug-links .click-area[data-link-type="video"] {
-  background: rgba(128, 0, 255, 0.28);
-  outline-color: purple;
+.debug-links .video-embed {
+  outline: 2px solid purple;
 }
 
-.debug-links .click-area--unset {
+.debug-links .click-area--unset,
+.debug-links .video-embed--unset {
   background: repeating-linear-gradient(
     45deg,
     rgba(0, 0, 0, 0.35),
@@ -143,6 +271,33 @@ img {
   );
   outline: 2px dashed #333333;
   cursor: not-allowed;
+}
+
+.debug-links .video-embed--unset {
+  display: block;
+  position: absolute;
+}
+
+@media (max-width: 767px) {
+  .debug-links .video-embed--pc {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) {
+  .debug-links .video-embed--sp {
+    display: none;
+  }
+}
+
+.contact-form--debug .contact-form__input {
+  background: rgba(0, 200, 120, 0.25);
+  outline: 2px solid #00a86b;
+}
+
+.contact-form--debug .contact-form__submit {
+  background: rgba(255, 0, 200, 0.25);
+  outline: 2px solid #d600aa;
 }
 
 .debug-link-label {

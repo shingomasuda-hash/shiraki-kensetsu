@@ -1,184 +1,199 @@
 {
-  "generatedAt": "2026-07-08T11:12:06+0000",
+  "generatedAt": "2026-07-28T02:11:44+0000",
   "sections": [
     {
       "id": "hero",
       "pc": {
         "file": "/design/pc/01-hero.webp",
-        "width": 2732,
-        "height": 1824,
-        "bytes": 535864
+        "width": 1024,
+        "height": 673,
+        "bytes": 203194
       },
       "sp": {
         "file": "/design/sp/01-hero.webp",
-        "width": 992,
-        "height": 612,
-        "bytes": 105372
+        "width": 375,
+        "height": 562,
+        "bytes": 72810
       }
     },
     {
       "id": "job",
       "pc": {
         "file": "/design/pc/02-job.webp",
-        "width": 2732,
-        "height": 1928,
-        "bytes": 230966
+        "width": 1024,
+        "height": 713,
+        "bytes": 77630
       },
       "sp": {
         "file": "/design/sp/02-job.webp",
-        "width": 992,
-        "height": 1592,
-        "bytes": 105186
+        "width": 375,
+        "height": 996,
+        "bytes": 60980
       }
     },
     {
       "id": "career",
       "pc": {
         "file": "/design/pc/03-career.webp",
-        "width": 2732,
-        "height": 3086,
-        "bytes": 366026
+        "width": 1024,
+        "height": 1124,
+        "bytes": 106078
       },
       "sp": {
         "file": "/design/sp/03-career.webp",
-        "width": 992,
-        "height": 2356,
-        "bytes": 167280
+        "width": 375,
+        "height": 2158,
+        "bytes": 108498
       }
     },
     {
       "id": "advantage",
       "pc": {
         "file": "/design/pc/04-advantage.webp",
-        "width": 2732,
-        "height": 1809,
-        "bytes": 331514
+        "width": 1024,
+        "height": 770,
+        "bytes": 112196
       },
       "sp": {
         "file": "/design/sp/04-advantage.webp",
-        "width": 992,
-        "height": 2068,
-        "bytes": 199892
+        "width": 375,
+        "height": 1320,
+        "bytes": 78866
       }
     },
     {
       "id": "for-you",
       "pc": {
         "file": "/design/pc/05-for-you.webp",
-        "width": 2732,
-        "height": 1966,
-        "bytes": 253740
+        "width": 1024,
+        "height": 677,
+        "bytes": 84118
       },
       "sp": {
         "file": "/design/sp/05-for-you.webp",
-        "width": 992,
-        "height": 1324,
-        "bytes": 127024
+        "width": 375,
+        "height": 1215,
+        "bytes": 60366
       }
     },
     {
       "id": "numbers",
       "pc": {
         "file": "/design/pc/06-numbers.webp",
-        "width": 2732,
-        "height": 1646,
-        "bytes": 234022
+        "width": 1024,
+        "height": 608,
+        "bytes": 82854
       },
       "sp": {
         "file": "/design/sp/06-numbers.webp",
-        "width": 992,
-        "height": 1336,
-        "bytes": 80148
+        "width": 375,
+        "height": 849,
+        "bytes": 40458
       }
     },
     {
       "id": "routine",
       "pc": {
         "file": "/design/pc/07-routine.webp",
-        "width": 2732,
-        "height": 2427,
-        "bytes": 320810
+        "width": 1024,
+        "height": 965,
+        "bytes": 68728
       },
       "sp": {
         "file": "/design/sp/07-routine.webp",
-        "width": 992,
-        "height": 1904,
-        "bytes": 145344
+        "width": 375,
+        "height": 1126,
+        "bytes": 44496
       }
     },
     {
       "id": "message",
       "pc": {
         "file": "/design/pc/08-message.webp",
-        "width": 2732,
-        "height": 2828,
-        "bytes": 270474
+        "width": 1024,
+        "height": 1123,
+        "bytes": 80700
       },
       "sp": {
         "file": "/design/sp/08-message.webp",
-        "width": 992,
-        "height": 2020,
-        "bytes": 134954
+        "width": 375,
+        "height": 1154,
+        "bytes": 56392
       }
     },
     {
       "id": "requirements",
       "pc": {
         "file": "/design/pc/09-requirements.webp",
-        "width": 2732,
-        "height": 1822,
-        "bytes": 150914
+        "width": 1024,
+        "height": 747,
+        "bytes": 53968
       },
       "sp": {
         "file": "/design/sp/09-requirements.webp",
-        "width": 992,
-        "height": 1700,
-        "bytes": 72326
+        "width": 375,
+        "height": 852,
+        "bytes": 34086
       }
     },
     {
       "id": "flow",
       "pc": {
         "file": "/design/pc/10-flow.webp",
-        "width": 2732,
-        "height": 1166,
-        "bytes": 87826
+        "width": 1024,
+        "height": 390,
+        "bytes": 44264
       },
       "sp": {
         "file": "/design/sp/10-flow.webp",
-        "width": 992,
-        "height": 1756,
-        "bytes": 102990
+        "width": 375,
+        "height": 624,
+        "bytes": 35684
       }
     },
     {
       "id": "faq",
       "pc": {
         "file": "/design/pc/11-faq.webp",
-        "width": 2732,
-        "height": 1560,
-        "bytes": 148920
+        "width": 1024,
+        "height": 612,
+        "bytes": 55676
       },
       "sp": {
         "file": "/design/sp/11-faq.webp",
-        "width": 992,
-        "height": 2484,
-        "bytes": 166886
+        "width": 375,
+        "height": 801,
+        "bytes": 43368
       }
     },
     {
-      "id": "entry",
+      "id": "contact",
       "pc": {
-        "file": "/design/pc/12-entry-footer.webp",
-        "width": 2732,
-        "height": 1678,
-        "bytes": 349240
+        "file": "/design/pc/12-contact.webp",
+        "width": 1024,
+        "height": 538,
+        "bytes": 105296
       },
       "sp": {
-        "file": "/design/sp/12-entry-footer.webp",
-        "width": 992,
-        "height": 1878,
-        "bytes": 161644
+        "file": "/design/sp/12-contact.webp",
+        "width": 375,
+        "height": 661,
+        "bytes": 60410
+      }
+    },
+    {
+      "id": "footer",
+      "pc": {
+        "file": "/design/pc/13-footer.webp",
+        "width": 1024,
+        "height": 200,
+        "bytes": 14378
+      },
+      "sp": {
+        "file": "/design/sp/13-footer.webp",
+        "width": 375,
+        "height": 262,
+        "bytes": 11526
       }
     }
   ]

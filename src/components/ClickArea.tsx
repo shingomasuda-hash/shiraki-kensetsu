@@ -12,7 +12,16 @@ type ClickAreaProps = {
   debug: boolean;
 };
 
-export function ClickArea({ id, label, href, rect, device, external, linkType, debug }: ClickAreaProps) {
+export function ClickArea({
+  id,
+  label,
+  href,
+  rect,
+  device,
+  external,
+  linkType,
+  debug,
+}: ClickAreaProps) {
   const style = {
     left: `${rect.left}%`,
     top: `${rect.top}%`,
@@ -33,7 +42,13 @@ export function ClickArea({ id, label, href, rect, device, external, linkType, d
         data-url-configured="false"
         style={style}
       >
-        <DebugLinkLabel id={id} linkType={linkType} label={label} device={device} urlConfigured={false} />
+        <DebugLinkLabel
+          id={id}
+          linkType={linkType}
+          label={label}
+          device={device}
+          urlConfigured={false}
+        />
       </span>
     );
   }
@@ -51,7 +66,13 @@ export function ClickArea({ id, label, href, rect, device, external, linkType, d
       style={style}
     >
       {debug ? (
-        <DebugLinkLabel id={id} linkType={linkType} label={label} device={device} urlConfigured />
+        <DebugLinkLabel
+          id={id}
+          linkType={linkType}
+          label={label}
+          device={device}
+          urlConfigured
+        />
       ) : null}
     </a>
   );
