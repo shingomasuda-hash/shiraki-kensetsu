@@ -33,3 +33,6 @@ yarn-error.log*
 
 # Python build tmp
 .design_build_tmp/
+
+# 確認用プレビューの生成物（画像を埋め込むため2MB超）
+/preview/
