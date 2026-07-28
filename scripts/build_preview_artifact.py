@@ -297,13 +297,28 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   .frame {
     width: 100%;
     max-width: 1024px;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,.12), 0 12px 32px rgba(0,0,0,.10);
+    margin: 0 auto;
   }
   .stage[data-device="sp"] .frame { max-width: 375px; }
+  .stage { display: block; padding: 0 0 60px; }
+  .band { position: relative; overflow: hidden; }
 
   .sec { position: relative; line-height: 0; font-size: 0; }
-  .sec img { display: block; width: 100%; height: auto; }
+  .sec img { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+  /* 余白側は、そのセクション画像をぼかしたものを敷いて埋める（本体は拡大しない） */
+  .sec::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    background-image: var(--bleed);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    filter: blur(36px);
+    transform: scaleX(1.08);
+    pointer-events: none;
+  }
+  .bleedwrap { position: relative; overflow: hidden; }
 
   .hot {
     position: absolute;
@@ -415,7 +430,7 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
 </div>
 
 <main class="stage" id="stage" data-device="pc">
-  <div class="frame" id="frame"></div>
+  <div id="frame"></div>
 </main>
 
 <script>
@@ -432,12 +447,16 @@ function render() {
   frame.textContent = '';
 
   for (const sec of DATA.sections) {
+    const band = document.createElement('div');
+    band.className = 'band';
+
     const el = document.createElement('section');
     el.className = 'sec';
     el.id = sec.id;
 
     const img = document.createElement('img');
     const d = sec[device];
+    el.style.setProperty('--bleed', `url("${d.src}")`);
     img.src = d.src;
     img.width = d.w;
     img.height = d.h;
@@ -492,7 +511,11 @@ function render() {
       el.appendChild(node);
     }
 
-    frame.appendChild(el);
+    const inner = document.createElement('div');
+    inner.className = 'frame';
+    inner.appendChild(el);
+    band.appendChild(inner);
+    frame.appendChild(band);
   }
 }
 
