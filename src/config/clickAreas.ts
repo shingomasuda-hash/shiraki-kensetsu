@@ -22,36 +22,41 @@ export const clickAreas: ClickArea[] = [
     pc: { left: 2.441, top: 2.08, width: 17.383, height: 5.944 },
     sp: { left: 4.267, top: 1.601, width: 38.4, height: 5.872 },
   },
+  // ヘッダーナビはページ内のセクションへ遷移させる。
+  // デザインの文言とLPのセクション名は完全には一致しないため、内容が最も近いものを割り当てている。
   {
     id: "nav-company",
     sectionId: "hero",
+    // 会社の実績・規模を示す「数字で見る白木建設」へ
     label: "企業情報",
-    type: "external",
-    externalLinkKey: "companyInfo",
+    type: "internal",
+    internalTarget: "numbers",
     pc: { left: 54.199, top: 2.377, width: 7.227, height: 5.498 },
   },
   {
     id: "nav-business",
     sectionId: "hero",
+    // 事業＝現場監督の仕事内容の紹介へ
     label: "事業紹介",
-    type: "external",
-    externalLinkKey: "business",
+    type: "internal",
+    internalTarget: "job",
     pc: { left: 62.012, top: 2.377, width: 6.934, height: 5.498 },
   },
   {
     id: "nav-works",
     sectionId: "hero",
+    // このLPに施工実績そのもののセクションはないため、最も近い「白木建設の魅力」へ
     label: "施工実績",
-    type: "external",
-    externalLinkKey: "works",
+    type: "internal",
+    internalTarget: "advantage",
     pc: { left: 69.824, top: 2.377, width: 7.227, height: 5.498 },
   },
   {
     id: "nav-recruit",
     sectionId: "hero",
     label: "採用情報",
-    type: "external",
-    externalLinkKey: "recruit",
+    type: "internal",
+    internalTarget: "requirements",
     pc: { left: 77.637, top: 2.377, width: 7.227, height: 5.498 },
   },
   {
@@ -94,21 +99,25 @@ export const clickAreas: ClickArea[] = [
     pc: { left: 2.148, top: 10.5, width: 14.062, height: 13.5 },
     sp: { left: 4.8, top: 9.542, width: 31.467, height: 8.779 },
   },
+  // フッターのうち、LP内に対応する内容があるものはページ内リンクにしている。
+  // 対応するセクションがないもの（事業所一覧・福利厚生・プライバシーポリシー・サイトマップ）は
+  // コーポレートサイトへの外部リンクのまま（URL未設定時はリンクを生成しない）。
   {
     id: "footer-president",
     sectionId: "footer",
     label: "代表者メッセージ",
-    type: "external",
-    externalLinkKey: "presidentMessage",
+    type: "internal",
+    internalTarget: "message",
     pc: { left: 73.926, top: 22.5, width: 9.863, height: 11.5 },
     sp: { left: 4.533, top: 44.275, width: 24.8, height: 8.015 },
   },
   {
     id: "footer-about",
     sectionId: "footer",
+    // 会社概要に相当する内容として「数字で見る白木建設」へ
     label: "会社概要",
-    type: "external",
-    externalLinkKey: "about",
+    type: "internal",
+    internalTarget: "numbers",
     pc: { left: 74.023, top: 34.0, width: 5.078, height: 11.0 },
     sp: { left: 4.533, top: 53.053, width: 13.333, height: 8.015 },
   },
@@ -125,8 +134,8 @@ export const clickAreas: ClickArea[] = [
     id: "footer-jobs",
     sectionId: "footer",
     label: "募集職種一覧",
-    type: "external",
-    externalLinkKey: "jobList",
+    type: "internal",
+    internalTarget: "requirements",
     pc: { left: 87.988, top: 22.5, width: 7.617, height: 11.5 },
     sp: { left: 40.8, top: 44.275, width: 18.933, height: 8.015 },
   },
@@ -142,9 +151,10 @@ export const clickAreas: ClickArea[] = [
   {
     id: "footer-interview",
     sectionId: "footer",
+    // 先輩社員の紹介にあたる「先輩社員の1日」へ
     label: "先輩インタビュー",
-    type: "external",
-    externalLinkKey: "employeeInterview",
+    type: "internal",
+    internalTarget: "routine",
     pc: { left: 87.988, top: 45.0, width: 9.961, height: 10.5 },
     sp: { left: 40.8, top: 61.45, width: 21.6, height: 8.397 },
   },

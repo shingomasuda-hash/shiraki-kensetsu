@@ -132,27 +132,19 @@ http://localhost:3000/?debugLinks=true
 | `NEXT_PUBLIC_SITE_URL` | 本番公開URL（canonical/OGP。未設定時は出力しない） |
 | `NEXT_PUBLIC_CORPORATE_URL` | ヘッダー／フッターのロゴのリンク先 |
 
-### ヘッダーナビゲーション（PC）
+### フッター（LP内に対応する内容がないもののみ外部リンク）
 
 | 変数名 | 表示文言 |
 |---|---|
-| `NEXT_PUBLIC_COMPANY_INFO_URL` | 企業情報 |
-| `NEXT_PUBLIC_BUSINESS_URL` | 事業紹介 |
-| `NEXT_PUBLIC_WORKS_URL` | 施工実績 |
-| `NEXT_PUBLIC_RECRUIT_URL` | 採用情報 |
-
-### フッター
-
-| 変数名 | 表示文言 |
-|---|---|
-| `NEXT_PUBLIC_PRESIDENT_MESSAGE_URL` | 代表者メッセージ |
-| `NEXT_PUBLIC_ABOUT_URL` | 会社概要 |
 | `NEXT_PUBLIC_OFFICES_URL` | 事業所一覧 |
-| `NEXT_PUBLIC_JOB_LIST_URL` | 募集職種一覧 |
 | `NEXT_PUBLIC_BENEFITS_URL` | 福利厚生 |
-| `NEXT_PUBLIC_EMPLOYEE_INTERVIEW_URL` | 先輩インタビュー |
 | `NEXT_PUBLIC_PRIVACY_POLICY_URL` | プライバシーポリシー |
 | `NEXT_PUBLIC_SITEMAP_URL` | サイトマップ |
+
+> ヘッダーナビとフッターの一部は**ページ内リンク**に変更したため、
+> `NEXT_PUBLIC_COMPANY_INFO_URL` / `BUSINESS` / `WORKS` / `RECRUIT` /
+> `PRESIDENT_MESSAGE` / `ABOUT` / `JOB_LIST` / `EMPLOYEE_INTERVIEW` は現在使用していません。
+> 外部リンクへ戻す場合は `src/config/clickAreas.ts` で `type` を `"external"` に戻してください。
 
 ### 動画
 
@@ -191,6 +183,38 @@ http://localhost:3000/?debugLinks=true
 動画は**16:9のまま枠を埋め、はみ出した部分を枠でクリップ**します（`object-fit: cover` 相当）。
 そのためレイアウトは1pxも動きませんが、枠と比率が大きく違う箇所では動画が大きくトリミングされます。
 特に「実際の現場一日紹介」のPC枠は縦長のため、**縦向きに撮影した動画**を割り当てると自然に収まります。
+
+## 9-1. ページ内リンクの割り当て
+
+デザインの文言とLPのセクション名は完全には一致しないため、内容が最も近いセクションへ割り当てています。
+変更は `src/config/clickAreas.ts` の `internalTarget` を書き換えるだけです。
+
+### ヘッダーナビ（PC。SPには存在しません）
+
+| 表示文言 | 遷移先 | 備考 |
+|---|---|---|
+| 企業情報 | `#numbers` 数字で見る白木建設 | 会社の実績・規模 |
+| 事業紹介 | `#job` 現場監督の仕事とは？ | |
+| 施工実績 | `#advantage` 白木建設の魅力 | **LP内に施工実績のセクションがないため代替** |
+| 採用情報 | `#requirements` 募集要項 | |
+| お問い合わせ | `#contact` お問い合わせ | |
+
+### セクション内CTA
+
+| 表示文言 | 遷移先 |
+|---|---|
+| 仕事を数字で知る → | `#numbers` |
+| 募集要項を見てみる → | `#requirements` |
+
+### フッター
+
+| 表示文言 | 遷移先 |
+|---|---|
+| 代表者メッセージ | `#message` 社長からのメッセージ |
+| 会社概要 | `#numbers` 数字で見る白木建設 |
+| 募集職種一覧 | `#requirements` 募集要項 |
+| 先輩インタビュー | `#routine` 先輩社員の1日 |
+| 事業所一覧 / 福利厚生 / プライバシーポリシー / サイトマップ | 外部リンク（LP内に対応セクションなし） |
 
 ## 9-2. SP版 三本線メニュー
 
@@ -275,7 +299,7 @@ npm run test:e2e
 `webServer` 設定により、`npm run build && npm run start` が自動実行されます。
 テストプロセスは `.env.local` / `.env` を読み込むため、環境変数の設定状況に応じて期待値が自動で切り替わります。
 
-テスト内容（96件）:
+テスト内容（101件）:
 
 - 320〜1920px（15段階）での横スクロール有無
 - 767px以下でSP画像・768px以上でPC画像のみが表示されること（`currentSrc`で検証）

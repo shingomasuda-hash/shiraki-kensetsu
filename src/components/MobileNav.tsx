@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { mobileNavItems, mobileNavTriggerRect } from "@/config/mobileNav";
+
+/** サーバー描画時は false、クライアントで描画された後は true を返す。 */
+const subscribeNoop = () => () => {};
+const useIsMounted = () => useSyncExternalStore(subscribeNoop, () => true, () => false);
 
 /**
  * SP版ヘッダーの三本線メニュー。
@@ -13,7 +17,6 @@ import { mobileNavItems, mobileNavTriggerRect } from "@/config/mobileNav";
  */
 export function MobileNav() {
   const [open, setOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const panelId = useId();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const firstItemRef = useRef<HTMLAnchorElement>(null);
@@ -21,7 +24,7 @@ export function MobileNav() {
   const close = useCallback(() => setOpen(false), []);
 
   // パネルはセクションの overflow に切られないよう body 直下へ描画する
-  useEffect(() => setMounted(true), []);
+  const mounted = useIsMounted();
 
   // 開いている間は背面のスクロールを止める
   useEffect(() => {

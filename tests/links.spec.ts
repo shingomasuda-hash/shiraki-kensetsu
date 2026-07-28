@@ -4,9 +4,17 @@ test.describe("内部リンク（PC）", () => {
   test.use({ viewport: { width: 1366, height: 900 } });
 
   const cases: Array<[string, string]> = [
+    ["nav-company-pc", "#numbers"],
+    ["nav-business-pc", "#job"],
+    ["nav-works-pc", "#advantage"],
+    ["nav-recruit-pc", "#requirements"],
     ["nav-contact-btn-pc", "#contact"],
     ["cta-numbers-pc", "#numbers"],
     ["cta-requirements-pc", "#requirements"],
+    ["footer-president-pc", "#message"],
+    ["footer-about-pc", "#numbers"],
+    ["footer-jobs-pc", "#requirements"],
+    ["footer-interview-pc", "#routine"],
   ];
 
   for (const [id, hash] of cases) {
@@ -24,6 +32,10 @@ test.describe("内部リンク（SP）", () => {
     ["nav-contact-btn-sp", "#contact"],
     ["cta-numbers-sp", "#numbers"],
     ["cta-requirements-sp", "#requirements"],
+    ["footer-president-sp", "#message"],
+    ["footer-about-sp", "#numbers"],
+    ["footer-jobs-sp", "#requirements"],
+    ["footer-interview-sp", "#routine"],
   ];
 
   for (const [id, hash] of cases) {
@@ -35,17 +47,19 @@ test.describe("内部リンク（SP）", () => {
 });
 
 test.describe("PC専用/SP専用リンクの出し分け", () => {
-  test("PCではヘッダーの各ナビ項目が存在する", async ({ page }) => {
+  test("PCではヘッダーの各ナビ項目が常に存在する（ページ内リンクのため）", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto("/");
     for (const id of ["nav-company", "nav-business", "nav-works", "nav-recruit"]) {
-      // URL未設定時は通常表示に出さないため、DOM上の pc 用要素数のみ確認する
-      const count = await page.locator(`[data-link-id="${id}"].click-area--pc`).count();
-      const configured = count > 0;
-      // 設定済みなら可視、未設定ならレンダリングされない
-      if (configured) {
-        await expect(page.locator(`[data-link-id="${id}"].click-area--pc`).first()).toBeVisible();
-      }
+      await expect(page.locator(`[data-link-id="${id}"].click-area--pc`)).toHaveCount(1);
+    }
+  });
+
+  test("PCナビはSPには存在しない（デザインに無いため）", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 900 });
+    await page.goto("/");
+    for (const id of ["nav-company", "nav-business", "nav-works", "nav-recruit"]) {
+      await expect(page.locator(`[data-link-id="${id}"].click-area--sp`)).toHaveCount(0);
     }
   });
 
@@ -75,16 +89,8 @@ test.describe("PC専用/SP専用リンクの出し分け", () => {
 test.describe("外部リンク", () => {
   const externals: Array<{ id: string; env: string }> = [
     { id: "header-logo", env: "NEXT_PUBLIC_CORPORATE_URL" },
-    { id: "nav-company", env: "NEXT_PUBLIC_COMPANY_INFO_URL" },
-    { id: "nav-business", env: "NEXT_PUBLIC_BUSINESS_URL" },
-    { id: "nav-works", env: "NEXT_PUBLIC_WORKS_URL" },
-    { id: "nav-recruit", env: "NEXT_PUBLIC_RECRUIT_URL" },
-    { id: "footer-president", env: "NEXT_PUBLIC_PRESIDENT_MESSAGE_URL" },
-    { id: "footer-about", env: "NEXT_PUBLIC_ABOUT_URL" },
     { id: "footer-offices", env: "NEXT_PUBLIC_OFFICES_URL" },
-    { id: "footer-jobs", env: "NEXT_PUBLIC_JOB_LIST_URL" },
     { id: "footer-benefits", env: "NEXT_PUBLIC_BENEFITS_URL" },
-    { id: "footer-interview", env: "NEXT_PUBLIC_EMPLOYEE_INTERVIEW_URL" },
     { id: "footer-privacy", env: "NEXT_PUBLIC_PRIVACY_POLICY_URL" },
     { id: "footer-sitemap", env: "NEXT_PUBLIC_SITEMAP_URL" },
   ];

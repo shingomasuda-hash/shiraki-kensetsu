@@ -40,7 +40,8 @@ export type ExternalLinkKey =
   | "privacyPolicy"
   | "sitemap";
 
-export type InternalLinkKey = "numbers" | "requirements" | "contact";
+/** ページ内リンクの遷移先は、実在するセクションIDのみを許可する */
+export type InternalLinkKey = SectionId;
 
 export type RelativeRect = {
   /** セクション画像の左端からの割合(%) */

@@ -1,12 +1,14 @@
 import { siteLinks } from "@/config/links";
+import { sections } from "@/config/sections";
 import type { ExternalLinkKey, InternalLinkKey } from "@/types/design";
 
-/** 内部リンクキー -> セクションのアンカーID */
-export const internalLinkMap: Record<InternalLinkKey, string> = {
-  numbers: "#numbers",
-  requirements: "#requirements",
-  contact: "#contact",
-};
+/**
+ * 内部リンクキー -> セクションのアンカー。
+ * 実在するセクションから生成しているため、存在しないIDを指定できない。
+ */
+export const internalLinkMap = Object.fromEntries(
+  sections.map((section) => [section.id, `#${section.id}`]),
+) as Record<InternalLinkKey, string>;
 
 /** 外部リンクキー -> 環境変数から解決したURL（未設定の場合は null） */
 export const externalLinkMap: Record<ExternalLinkKey, string | null> = {

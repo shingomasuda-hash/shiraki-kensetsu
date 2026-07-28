@@ -33,51 +33,51 @@ SECTIONS = [
 
 # src/config/clickAreas.ts と同じ値
 CLICK_AREAS = [
-    ("header-logo", "hero", "白木建設株式会社", "external",
+    ("header-logo", "hero", "白木建設株式会社", "external", None,
      dict(left=2.441, top=2.08, width=17.383, height=5.944),
      dict(left=4.267, top=1.601, width=38.4, height=5.872)),
-    ("nav-company", "hero", "企業情報", "external",
+    ("nav-company", "hero", "企業情報", "internal", "numbers",
      dict(left=54.199, top=2.377, width=7.227, height=5.498), None),
-    ("nav-business", "hero", "事業紹介", "external",
+    ("nav-business", "hero", "事業紹介", "internal", "job",
      dict(left=62.012, top=2.377, width=6.934, height=5.498), None),
-    ("nav-works", "hero", "施工実績", "external",
+    ("nav-works", "hero", "施工実績", "internal", "advantage",
      dict(left=69.824, top=2.377, width=7.227, height=5.498), None),
-    ("nav-recruit", "hero", "採用情報", "external",
+    ("nav-recruit", "hero", "採用情報", "internal", "requirements",
      dict(left=77.637, top=2.377, width=7.227, height=5.498), None),
-    ("nav-contact-btn", "hero", "お問い合わせ", "internal",
+    ("nav-contact-btn", "hero", "お問い合わせ", "internal", "contact",
      dict(left=86.328, top=2.675, width=11.328, height=4.755),
      dict(left=65.333, top=2.313, width=22.933, height=4.448)),
-    ("cta-numbers", "job", "仕事を数字で知る", "internal",
+    ("cta-numbers", "job", "仕事を数字で知る", "internal", "numbers",
      dict(left=50.586, top=58.906, width=11.719, height=4.488),
      dict(left=3.733, top=68.574, width=34.4, height=3.514)),
-    ("cta-requirements", "for-you", "募集要項を見てみる", "internal",
+    ("cta-requirements", "for-you", "募集要項を見てみる", "internal", "requirements",
      dict(left=74.902, top=24.372, width=17.871, height=6.942),
      dict(left=5.333, top=13.663, width=47.733, height=2.634)),
-    ("footer-logo", "footer", "白木建設株式会社", "external",
+    ("footer-logo", "footer", "白木建設株式会社", "external", None,
      dict(left=2.148, top=10.5, width=14.062, height=13.5),
      dict(left=4.8, top=9.542, width=31.467, height=8.779)),
-    ("footer-president", "footer", "代表者メッセージ", "external",
+    ("footer-president", "footer", "代表者メッセージ", "internal", "message",
      dict(left=73.926, top=22.5, width=9.863, height=11.5),
      dict(left=4.533, top=44.275, width=24.8, height=8.015)),
-    ("footer-about", "footer", "会社概要", "external",
+    ("footer-about", "footer", "会社概要", "internal", "numbers",
      dict(left=74.023, top=34.0, width=5.078, height=11.0),
      dict(left=4.533, top=53.053, width=13.333, height=8.015)),
-    ("footer-offices", "footer", "事業所一覧", "external",
+    ("footer-offices", "footer", "事業所一覧", "external", None,
      dict(left=74.023, top=45.0, width=6.348, height=10.5),
      dict(left=4.533, top=61.45, width=16.0, height=8.397)),
-    ("footer-jobs", "footer", "募集職種一覧", "external",
+    ("footer-jobs", "footer", "募集職種一覧", "internal", "requirements",
      dict(left=87.988, top=22.5, width=7.617, height=11.5),
      dict(left=40.8, top=44.275, width=18.933, height=8.015)),
-    ("footer-benefits", "footer", "福利厚生", "external",
+    ("footer-benefits", "footer", "福利厚生", "external", None,
      dict(left=87.988, top=34.0, width=5.176, height=11.0),
      dict(left=40.8, top=53.053, width=13.333, height=8.015)),
-    ("footer-interview", "footer", "先輩インタビュー", "external",
+    ("footer-interview", "footer", "先輩インタビュー", "internal", "routine",
      dict(left=87.988, top=45.0, width=9.961, height=10.5),
      dict(left=40.8, top=61.45, width=21.6, height=8.397)),
-    ("footer-privacy", "footer", "プライバシーポリシー", "external",
+    ("footer-privacy", "footer", "プライバシーポリシー", "external", None,
      dict(left=79.395, top=88.5, width=10.938, height=11.5),
      dict(left=5.6, top=86.26, width=26.667, height=7.252)),
-    ("footer-sitemap", "footer", "サイトマップ", "external",
+    ("footer-sitemap", "footer", "サイトマップ", "external", None,
      dict(left=91.016, top=88.5, width=6.738, height=11.5),
      dict(left=34.4, top=86.26, width=15.733, height=7.252)),
 ]
@@ -152,8 +152,8 @@ def main() -> None:
         })
 
     areas = [
-        {"id": i, "section": s, "label": l, "kind": k, "pc": pc, "sp": sp}
-        for (i, s, l, k, pc, sp) in CLICK_AREAS
+        {"id": i, "section": s, "label": l, "kind": k, "target": tg, "pc": pc, "sp": sp}
+        for (i, s, l, k, tg, pc, sp) in CLICK_AREAS
     ]
     vids = [
         {"id": i, "section": s, "label": l, "pc": pc, "sp": sp}
@@ -562,9 +562,8 @@ function render() {
       const node = document.createElement(isInternal ? 'a' : 'span');
       node.className = `hot hot--${a.kind}`;
       node.style.cssText = pct(r);
-      if (isInternal) {
-        const target = { 'nav-contact-btn': '#contact', 'cta-numbers': '#numbers', 'cta-requirements': '#requirements' }[a.id];
-        if (target) node.setAttribute('href', target);
+      if (isInternal && a.target) {
+        node.setAttribute('href', '#' + a.target);
         node.setAttribute('aria-label', a.label);
       }
       node.innerHTML = `<span class="hot__tag">${a.id}<br>${a.label}${isInternal ? '' : '<br>URL未設定'}</span>`;
