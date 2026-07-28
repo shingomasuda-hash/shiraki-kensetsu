@@ -121,6 +121,16 @@ SUBMIT_RECT = (
     dict(left=26.133, top=83.056, width=47.733, height=6.051),
 )
 
+# src/config/mobileNav.ts と同じ値
+MOBILE_NAV_ITEMS = [
+    ("job", "現場監督の仕事とは？"), ("career", "キャリアプラン"),
+    ("advantage", "白木建設の魅力"), ("for-you", "こんな人に向いています"),
+    ("numbers", "数字で見る白木建設"), ("routine", "先輩社員の1日"),
+    ("message", "社長からのメッセージ"), ("requirements", "募集要項"),
+    ("flow", "応募の流れ"), ("faq", "よくある質問"), ("contact", "お問い合わせ"),
+]
+MOBILE_NAV_TRIGGER = dict(left=89.333, top=1.246, width=8.0, height=6.584)
+
 
 def data_uri(path: Path) -> str:
     return "data:image/webp;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
@@ -160,6 +170,8 @@ def main() -> None:
         "videos": vids,
         "fields": fields,
         "submit": {"pc": SUBMIT_RECT[0], "sp": SUBMIT_RECT[1]},
+        "navItems": [{"target": t, "label": l} for t, l in MOBILE_NAV_ITEMS],
+        "navTrigger": MOBILE_NAV_TRIGGER,
     }
 
     html = TEMPLATE.replace("__DATA__", json.dumps(data, ensure_ascii=False))
@@ -373,6 +385,41 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   }
   .show-map .sbmt { background: rgba(255,0,190,.26); outline: 2px solid #d600aa; }
 
+  .navtrigger {
+    position: absolute;
+    z-index: 30;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+  }
+  .show-map .navtrigger { background: rgba(0,200,255,.35); outline: 2px solid #00a0c8; }
+  .navpanel {
+    position: fixed; inset: 0; z-index: 100;
+    display: flex; flex-direction: column;
+    background: #1b3b2a; color: #fff;
+    font-size: 16px; line-height: 1.5; overflow-y: auto;
+  }
+  .navpanel[hidden] { display: none; }
+  .navpanel__bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,.16);
+  }
+  .navpanel__title { font-size: 12px; font-weight: 700; letter-spacing: .16em; color: #30ac5f; }
+  .navpanel__close {
+    width: 40px; height: 40px; border: 0; border-radius: 999px;
+    background: transparent; color: #fff; font-size: 20px; cursor: pointer;
+  }
+  .navpanel__item {
+    display: flex; align-items: center; min-height: 56px; padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.12);
+    color: #fff; font-size: 15px; font-weight: 500; text-decoration: none;
+  }
+  .navpanel__item::after {
+    content: ""; width: 7px; height: 7px; margin-left: auto;
+    border-right: 2px solid #30ac5f; border-bottom: 2px solid #30ac5f;
+    transform: rotate(-45deg);
+  }
+
   .legend {
     display: flex;
     flex-wrap: wrap;
@@ -429,6 +476,8 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   <span><i style="background:#d600aa"></i>送信ボタン</span>
 </div>
 
+<div class="navpanel" id="navpanel" role="dialog" aria-modal="true" aria-label="メニュー" hidden></div>
+
 <main class="stage" id="stage" data-device="pc">
   <div id="frame"></div>
 </main>
@@ -472,6 +521,17 @@ function render() {
       box.style.cssText = pct(r);
       box.innerHTML = `<span class="hot__tag">${v.id}<br>${v.label}<br>URL未設定</span>`;
       el.appendChild(box);
+    }
+
+    if (sec.id === 'hero' && device === 'sp') {
+      const t = DATA.navTrigger;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'navtrigger';
+      btn.style.cssText = pct(t);
+      btn.setAttribute('aria-label', 'メニューを開く');
+      btn.addEventListener('click', () => openNav());
+      el.appendChild(btn);
     }
 
     if (sec.id === 'contact') {
@@ -519,10 +579,50 @@ function render() {
   }
 }
 
+const navpanel = document.getElementById('navpanel');
+
+function closeNav() {
+  navpanel.hidden = true;
+  document.body.style.overflow = '';
+}
+
+function openNav() {
+  navpanel.textContent = '';
+
+  const bar = document.createElement('div');
+  bar.className = 'navpanel__bar';
+  const title = document.createElement('span');
+  title.className = 'navpanel__title';
+  title.textContent = 'MENU';
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'navpanel__close';
+  close.setAttribute('aria-label', 'メニューを閉じる');
+  close.textContent = '✕';
+  close.addEventListener('click', closeNav);
+  bar.append(title, close);
+  navpanel.appendChild(bar);
+
+  for (const item of DATA.navItems) {
+    const a = document.createElement('a');
+    a.className = 'navpanel__item';
+    a.href = '#' + item.target;
+    a.textContent = item.label;
+    a.addEventListener('click', closeNav);
+    navpanel.appendChild(a);
+  }
+
+  navpanel.hidden = false;
+  document.body.style.overflow = 'hidden';
+}
+
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeNav(); });
+
 document.querySelectorAll('[data-device-btn]').forEach((btn) => {
   btn.addEventListener('click', () => {
     device = btn.dataset.deviceBtn;
     stage.dataset.device = device;
+    closeNav();
     document.querySelectorAll('[data-device-btn]').forEach((b) =>
       b.setAttribute('aria-pressed', String(b === btn)));
     render();
