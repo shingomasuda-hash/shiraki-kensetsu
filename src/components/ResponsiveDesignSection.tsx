@@ -25,8 +25,15 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
   const videos = videoSlots.filter((slot) => slot.sectionId === section.id);
   const isFirstView = Boolean(section.isFirstView);
 
+  // 余白側に敷く、ぼかし用の背景（セクション画像そのものを再利用する）
+  const bleedStyle = {
+    "--bleed-pc": `url("${sizes.pc.file}")`,
+    "--bleed-sp": `url("${sizes.sp.file}")`,
+  } as React.CSSProperties;
+
   return (
-    <section id={section.id} className="design-section" aria-label={section.label}>
+    <section id={section.id} className="design-section" aria-label={section.label} style={bleedStyle}>
+      <div className="design-section__inner">
       <picture>
         <source
           media="(max-width: 767px)"
@@ -111,6 +118,7 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
           </Fragment>
         );
       })}
+      </div>
     </section>
   );
 }

@@ -78,20 +78,54 @@ test.describe("PC/SP画像の自動切り替え", () => {
 });
 
 test.describe("デザイン幅の上限（原寸を超えて引き伸ばさない）", () => {
-  test("SPは375pxを超えて拡大されない", async ({ page }) => {
+  test("SPのデザイン画像は375pxを超えて拡大されない", async ({ page }) => {
     await page.setViewportSize({ width: 600, height: 900 });
     await page.goto("/");
-    const box = await page.locator('[data-testid="design-wrapper"]').boundingBox();
+    const box = await page.locator("#hero picture img").boundingBox();
     expect(box).not.toBeNull();
     expect(box!.width).toBeLessThanOrEqual(375);
   });
 
-  test("PCは1024pxを超えて拡大されない", async ({ page }) => {
+  test("PCのデザイン画像は1024pxを超えて拡大されない", async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 1080 });
     await page.goto("/");
-    const box = await page.locator('[data-testid="design-wrapper"]').boundingBox();
+    const box = await page.locator("#hero picture img").boundingBox();
     expect(box).not.toBeNull();
     expect(box!.width).toBeLessThanOrEqual(1024);
+  });
+
+  test("広い画面でも各セクションが全幅に見える（左右に余白が残らない）", async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto("/");
+
+    // 背景が途切れやすいフッター（濃緑）で、両脇まで色が伸びていることを確認する
+    await page.locator("#footer").scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+
+    const section = await page.locator("#footer").boundingBox();
+    expect(section!.width).toBeGreaterThanOrEqual(1920 - 20);
+
+    // 余白側にはセクション画像をぼかした背景が敷かれている
+    const bleed = await page.locator("#footer").evaluate((el) => {
+      const cs = getComputedStyle(el, "::before");
+      return { image: cs.backgroundImage, filter: cs.filter };
+    });
+    expect(bleed.image).toContain("/design/pc/13-footer.webp");
+    expect(bleed.filter).toContain("blur");
+
+    // 画面の左右端までフッターの領域が届いている（白い余白が残っていない）
+    const edges = await page.locator("#footer").evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const y = Math.round(r.top + r.height / 2);
+      const left = document.elementFromPoint(4, y);
+      const right = document.elementFromPoint(window.innerWidth - 5, y);
+      return {
+        left: left?.closest("section")?.id ?? null,
+        right: right?.closest("section")?.id ?? null,
+      };
+    });
+    expect(edges.left).toBe("footer");
+    expect(edges.right).toBe("footer");
   });
 
   test("画像の縦横比が元データと一致する（hero/PC）", async ({ page }) => {

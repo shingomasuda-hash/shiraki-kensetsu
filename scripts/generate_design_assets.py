@@ -96,6 +96,7 @@ def log(msg: str) -> None:
     print(f"[generate_design_assets] {msg}")
 
 
+
 def check_sources() -> tuple[Image.Image, Image.Image]:
     for path in (PC_SRC, SP_SRC):
         if not path.exists():
@@ -143,6 +144,7 @@ def generate_device(
 
         crop.save(png_path, format="PNG")
         crop.save(webp_path, format="WEBP", quality=WEBP_QUALITY, method=WEBP_METHOD)
+
 
         src_bytes = png_path.stat().st_size
         webp_bytes = webp_path.stat().st_size
@@ -247,8 +249,12 @@ def write_manifest(all_results: list[SectionResult]) -> None:
         pc, sp = e["pc"], e["sp"]
         lines.append("  {")
         lines.append(f'    id: "{section["id"]}",')
-        lines.append(f'    pc: {{ file: "{pc["file"]}", width: {pc["width"]}, height: {pc["height"]} }},')
-        lines.append(f'    sp: {{ file: "{sp["file"]}", width: {sp["width"]}, height: {sp["height"]} }},')
+        for dev, info in (("pc", pc), ("sp", sp)):
+            lines.append(f"    {dev}: {{")
+            lines.append(f'      file: "{info["file"]}",')
+            lines.append(f'      width: {info["width"]},')
+            lines.append(f'      height: {info["height"]},')
+            lines.append("    },")
         lines.append("  },")
     lines.append("];")
     lines.append("")

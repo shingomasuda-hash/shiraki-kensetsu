@@ -51,6 +51,11 @@ img {
   padding: 0;
 }
 
+/*
+ * セクションは常に画面全幅。デザイン画像は原寸のまま中央に置き、
+ * 余った左右は「画像の端1px列を横に引き伸ばしたもの」で埋める。
+ * 画像自体を拡大しないため、文字や線の画質は一切劣化しない。
+ */
 .design-section {
   position: relative;
   width: 100%;
@@ -58,6 +63,44 @@ img {
   padding: 0;
   line-height: 0;
   font-size: 0;
+  overflow: hidden;
+}
+
+.design-section__inner {
+  position: relative;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/*
+ * 余った左右は、そのセクション画像を強くぼかしたものを敷いて埋める。
+ * 縦方向は原寸と同じ比率で配置するため、背景色の切り替わりが本体と一致し、
+ * 端まで写真があるセクションでも縞にならない。
+ * デザイン本体（中央の画像）は拡大しないので、文字や線は劣化しない。
+ */
+.design-section::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: var(--bleed-pc);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  filter: blur(36px);
+  /* ぼかしで端が透けるのを防ぐため、横方向にだけ少し広げる */
+  transform: scaleX(1.08);
+}
+
+@media (max-width: 767px) {
+  .design-section::before {
+    background-image: var(--bleed-sp);
+  }
+}
+
+.design-section__inner {
+  z-index: 1;
 }
 
 .design-section picture,
@@ -78,13 +121,13 @@ img {
  * ここの max-width を 1366px / 430px などへ引き上げられる。
  */
 @media (max-width: 767px) {
-  .design-wrapper {
+  .design-section__inner {
     max-width: 375px;
   }
 }
 
 @media (min-width: 768px) {
-  .design-wrapper {
+  .design-section__inner {
     max-width: 1024px;
   }
 }
