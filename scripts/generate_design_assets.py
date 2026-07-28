@@ -32,8 +32,11 @@ Image.MAX_IMAGE_PIXELS = None
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE_DIR = ROOT / "source"
-PC_SRC = SOURCE_DIR / "トレースPC版.png"
-SP_SRC = SOURCE_DIR / "トレースSP版.png"
+
+# 元データの候補。同じ名前で複数の形式がある場合は、最も解像度の高いものを自動採用する。
+# （2倍書き出しへ差し替えた場合も、ファイルを置くだけで自動的に高精細になる）
+PC_SRC_CANDIDATES = ["トレースPC版.jpg", "トレースPC版.png", "トレースPC版.webp"]
+SP_SRC_CANDIDATES = ["トレースSP版.jpg", "トレースSP版.png", "トレースSP版.webp"]
 
 OUT_PC_DIR = ROOT / "public" / "design" / "pc"
 OUT_SP_DIR = ROOT / "public" / "design" / "sp"
@@ -43,9 +46,12 @@ MANIFEST_JSON = ROOT / "public" / "design" / "manifest.json"
 
 TMP_DIR = ROOT / ".design_build_tmp"
 
-# 元PNGの想定サイズ（等倍）。異なる場合は警告して継続する。
-EXPECTED_PC_SIZE = (1024, 9140)
-EXPECTED_SP_SIZE = (375, 12580)
+# 座標の基準となる「1倍」のデザインサイズ。
+# 下の SECTION 境界はすべてこの座標系で記述する。
+# 実際の元データがこれより高解像度（2倍など）の場合は、
+# 画像サイズから倍率を求めて境界を自動換算するため、境界値の書き換えは不要。
+REF_PC_SIZE = (1024, 9140)
+REF_SP_SIZE = (375, 12580)
 
 # セクション定義（PC/SPで同じID・同じファイル番号に対応させる）
 SECTIONS = [
@@ -64,8 +70,9 @@ SECTIONS = [
     {"id": "footer", "file": "13-footer"},
 ]
 
-# セクション境界（px）。背景色の切り替わり位置、および
+# セクション境界（px / 1倍基準）。背景色の切り替わり位置、および
 # 文字・写真・カード・動画枠を分断しない余白帯の中央を実測して決定している。
+# 高解像度の元データを使う場合も、この値は書き換えない（自動換算される）。
 PC_BOUNDARIES = [
     0, 673, 1386, 2510, 3280, 3957, 4565, 5530, 6653, 7400, 7790, 8402, 8940, 9140,
 ]
@@ -97,29 +104,62 @@ def log(msg: str) -> None:
 
 
 
-def check_sources() -> tuple[Image.Image, Image.Image]:
-    for path in (PC_SRC, SP_SRC):
+def pick_source(candidates: list[str], label: str) -> Image.Image:
+    """候補のうち、最も横幅の大きい（＝最も高精細な）ファイルを採用する。"""
+    found: list[tuple[int, Path, Image.Image]] = []
+    for name in candidates:
+        path = SOURCE_DIR / name
         if not path.exists():
-            log(f"ERROR: 元データが見つかりません: {path}")
-            sys.exit(1)
+            continue
+        img = Image.open(path)
+        found.append((img.width, path, img))
 
-    pc = Image.open(PC_SRC).convert("RGB")
-    sp = Image.open(SP_SRC).convert("RGB")
+    if not found:
+        log(f"ERROR: {label}の元データが見つかりません（候補: {', '.join(candidates)}）")
+        sys.exit(1)
 
-    log(f"PC版: {PC_SRC.name} / {pc.width} x {pc.height} px")
-    log(f"SP版: {SP_SRC.name} / {sp.width} x {sp.height} px")
+    found.sort(key=lambda t: t[0], reverse=True)
+    width, path, img = found[0]
 
-    if (pc.width, pc.height) != EXPECTED_PC_SIZE:
-        log("WARNING: PC版のサイズが想定と異なります。PC_BOUNDARIES を再確認してください。")
-    if (sp.width, sp.height) != EXPECTED_SP_SIZE:
-        log("WARNING: SP版のサイズが想定と異なります。SP_BOUNDARIES を再確認してください。")
+    for w, p, _ in found[1:]:
+        log(f"  （{p.name} は {w}px 幅のため不採用）")
 
-    if pc.height != PC_BOUNDARIES[-1]:
-        log(f"WARNING: PC_BOUNDARIES の末尾({PC_BOUNDARIES[-1]})が画像高さ({pc.height})と一致しません。")
-    if sp.height != SP_BOUNDARIES[-1]:
-        log(f"WARNING: SP_BOUNDARIES の末尾({SP_BOUNDARIES[-1]})が画像高さ({sp.height})と一致しません。")
+    log(f"{label}: {path.name} / {img.width} x {img.height} px")
+    return img.convert("RGB")
 
-    return pc, sp
+
+def scale_boundaries(boundaries: list[int], ref_height: int, actual_height: int) -> list[int]:
+    """1倍基準の境界を、実際の画像高さに合わせて換算する。"""
+    if ref_height == actual_height:
+        return list(boundaries)
+
+    ratio = actual_height / ref_height
+    scaled = [round(b * ratio) for b in boundaries]
+    scaled[0] = 0
+    scaled[-1] = actual_height
+    return scaled
+
+
+def check_sources() -> tuple[Image.Image, Image.Image, list[int], list[int]]:
+    pc = pick_source(PC_SRC_CANDIDATES, "PC版")
+    sp = pick_source(SP_SRC_CANDIDATES, "SP版")
+
+    pc_scale = pc.width / REF_PC_SIZE[0]
+    sp_scale = sp.width / REF_SP_SIZE[0]
+    log(f"解像度倍率: PC={pc_scale:.3g}x / SP={sp_scale:.3g}x（基準 {REF_PC_SIZE[0]}px / {REF_SP_SIZE[0]}px）")
+
+    for name, img, ref in (("PC版", pc, REF_PC_SIZE), ("SP版", sp, REF_SP_SIZE)):
+        expected_h = ref[1] * (img.width / ref[0])
+        if abs(img.height - expected_h) > max(4.0, expected_h * 0.002):
+            log(
+                f"WARNING: {name}の縦横比が基準と異なります "
+                f"(期待 約{expected_h:.0f}px / 実際 {img.height}px)。境界を再確認してください。"
+            )
+
+    pc_bounds = scale_boundaries(PC_BOUNDARIES, REF_PC_SIZE[1], pc.height)
+    sp_bounds = scale_boundaries(SP_BOUNDARIES, REF_SP_SIZE[1], sp.height)
+
+    return pc, sp, pc_bounds, sp_bounds
 
 
 def generate_device(
@@ -170,12 +210,12 @@ def generate_device(
     return results
 
 
-def generate_ogp(pc: Image.Image) -> tuple[int, int, int]:
+def generate_ogp(pc: Image.Image, pc_bounds: list[int]) -> tuple[int, int, int]:
     """PC版ファーストビューから1200x630のOGP画像を生成する（デザインは変形しない）。"""
     target_w, target_h = 1200, 630
     target_ratio = target_w / target_h
 
-    hero_top, hero_bottom = 0, PC_BOUNDARIES[1]
+    hero_top, hero_bottom = 0, pc_bounds[1]
     hero_h = hero_bottom - hero_top
 
     crop_h = min(hero_h, int(pc.width / target_ratio))
@@ -190,7 +230,9 @@ def generate_ogp(pc: Image.Image) -> tuple[int, int, int]:
 
 def generate_icons(pc: Image.Image) -> None:
     """ヘッダーのロゴマークからfavicon等を生成する（新規デザインは作らない）。"""
-    icon = pc.crop((26, 16, 60, 52))
+    # 切り出し位置は1倍基準。実データの解像度に合わせて換算する。
+    s = pc.width / REF_PC_SIZE[0]
+    icon = pc.crop((round(26 * s), round(16 * s), round(60 * s), round(52 * s)))
     size = max(icon.width, icon.height)
     canvas = Image.new("RGB", (size, size), (255, 255, 255))
     canvas.paste(icon, ((size - icon.width) // 2, (size - icon.height) // 2))
@@ -284,20 +326,20 @@ def prune_stale(results: list[SectionResult]) -> None:
 
 def main() -> None:
     log("=== 白木建設 採用LP アセット生成を開始します ===")
-    pc, sp = check_sources()
+    pc, sp, pc_bounds, sp_bounds = check_sources()
 
     all_results: list[SectionResult] = []
 
     log("--- PC版セクション画像を生成 ---")
-    all_results += generate_device("pc", pc, OUT_PC_DIR, PC_BOUNDARIES)
+    all_results += generate_device("pc", pc, OUT_PC_DIR, pc_bounds)
 
     log("--- SP版セクション画像を生成 ---")
-    all_results += generate_device("sp", sp, OUT_SP_DIR, SP_BOUNDARIES)
+    all_results += generate_device("sp", sp, OUT_SP_DIR, sp_bounds)
 
     prune_stale(all_results)
 
     log("--- OGP画像・アイコンを生成 ---")
-    w, h, b = generate_ogp(pc)
+    w, h, b = generate_ogp(pc, pc_bounds)
     log(f"OGP画像: {w}x{h}px {b/1024:.1f}KB -> {OUT_ROOT / 'ogp.jpg'}")
     generate_icons(pc)
 
