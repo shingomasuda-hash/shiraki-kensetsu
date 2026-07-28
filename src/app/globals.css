@@ -282,6 +282,144 @@ textarea.contact-form__input {
   }
 }
 
+/* ---------- SP版 三本線メニュー ---------- */
+/*
+ * デザイン画像の三本線アイコンの位置へ透明なボタンを重ねる。
+ * パネルの配色はデザインから採取した値（フッター濃緑 / ボタン緑）を使用。
+ */
+.mobile-nav__trigger {
+  position: absolute;
+  z-index: 30;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.mobile-nav__trigger:focus-visible {
+  outline: 3px solid #1b3b2a;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.mobile-nav__panel {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  background: #1b3b2a;
+  color: #ffffff;
+  font-size: 16px;
+  line-height: 1.5;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-nav__panel[hidden] {
+  display: none;
+}
+
+.mobile-nav__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.mobile-nav__title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: #30ac5f;
+}
+
+.mobile-nav__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin: -8px -8px -8px 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav__close:focus-visible {
+  outline: 2px solid #30ac5f;
+  outline-offset: 2px;
+}
+
+.mobile-nav__list {
+  display: flex;
+  flex-direction: column;
+  padding: 4px 0 32px;
+}
+
+.mobile-nav__item {
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav__item::after {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-right: 2px solid #30ac5f;
+  border-bottom: 2px solid #30ac5f;
+  transform: rotate(-45deg);
+}
+
+.mobile-nav__item:focus-visible {
+  outline: 2px solid #30ac5f;
+  outline-offset: -2px;
+}
+
+@media (hover: hover) {
+  .mobile-nav__item:hover {
+    background: rgba(255, 255, 255, 0.07);
+  }
+}
+
+.mobile-nav__item:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* 三本線はSPデザインにのみ存在するため、PC表示では出さない */
+@media (min-width: 768px) {
+  .mobile-nav__trigger,
+  .mobile-nav__panel {
+    display: none;
+  }
+}
+
+.debug-links .mobile-nav__trigger {
+  background: rgba(0, 200, 255, 0.35);
+  outline: 2px solid #00a0c8;
+}
+
 /* ---------- デバッグモード（?debugLinks=true） ---------- */
 .debug-links .click-area {
   background: rgba(255, 0, 0, 0.28);

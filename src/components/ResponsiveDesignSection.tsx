@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { ClickArea } from "@/components/ClickArea";
 import { ContactFormOverlay } from "@/components/ContactFormOverlay";
+import { MobileNav } from "@/components/MobileNav";
 import { VideoEmbed } from "@/components/VideoEmbed";
 import { clickAreas } from "@/config/clickAreas";
 import { externalLinkMap, internalLinkMap } from "@/config/linkMap";
@@ -77,6 +78,8 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
       {section.id === "contact" ? (
         <ContactFormOverlay endpoint={siteLinks.contactEndpoint} debug={debug} />
       ) : null}
+
+      {section.id === "hero" ? <MobileNav /> : null}
 
       {areas.map((area) => {
         const href =
