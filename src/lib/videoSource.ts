@@ -31,24 +31,53 @@ const extractDriveId = (url: URL): string | null => {
   return url.searchParams.get("id");
 };
 
+/** YouTubeの動画IDは11文字の英数字・ハイフン・アンダースコア。 */
+const YOUTUBE_ID = /^[\w-]{11}$/;
+
 /** URLからYouTubeの動画IDを取り出す。YouTube以外は null。 */
 const extractYouTubeId = (url: URL): string | null => {
   if (!YOUTUBE_HOSTS.has(url.hostname)) {
     return null;
   }
 
-  if (url.hostname.endsWith("youtu.be")) {
-    const id = url.pathname.replace(/^\//, "").split("/")[0];
-    return id || null;
+  const candidate = (() => {
+    if (url.hostname.endsWith("youtu.be")) {
+      // https://youtu.be/{id}?si=xxxx （共有ボタンで出るトラッキング付きURL）
+      return url.pathname.replace(/^\//, "").split("/")[0] || null;
+    }
+
+    // https://www.youtube.com/watch?v={id}
+    const v = url.searchParams.get("v");
+    if (v) {
+      return v;
+    }
+
+    // /embed/{id} /shorts/{id} /live/{id} /v/{id}
+    const match = url.pathname.match(/\/(?:embed|shorts|live|v)\/([^/?#]+)/);
+    return match ? match[1] : null;
+  })();
+
+  return candidate && YOUTUBE_ID.test(candidate) ? candidate : null;
+};
+
+/** 再生開始位置（秒）。`?t=90` `?t=1m30s` `?start=90` に対応。 */
+const extractStartSeconds = (url: URL): number | null => {
+  const raw = url.searchParams.get("t") ?? url.searchParams.get("start");
+  if (!raw) {
+    return null;
   }
 
-  const v = url.searchParams.get("v");
-  if (v) {
-    return v;
+  if (/^\d+$/.test(raw)) {
+    return Number(raw);
   }
 
-  const match = url.pathname.match(/\/(?:embed|shorts|live|v)\/([^/?#]+)/);
-  return match ? match[1] : null;
+  const match = raw.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  if (!match || !match.slice(1).some(Boolean)) {
+    return null;
+  }
+
+  const [h, m, s] = match.slice(1).map((part) => Number(part ?? 0) || 0);
+  return h * 3600 + m * 60 + s;
 };
 
 /**
@@ -87,6 +116,10 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
     if (list) {
       params.set("list", list);
     }
+    const start = extractStartSeconds(url);
+    if (start) {
+      params.set("start", String(start));
+    }
     return {
       kind: "youtube",
       embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?${params.toString()}`,
@@ -102,6 +135,13 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
       embedUrl: `https://drive.google.com/file/d/${id}/preview`,
       watchUrl: `https://drive.google.com/file/d/${id}/view`,
     };
+  }
+
+  // YouTube／ドライブのURLなのに動画IDが取れない場合（チャンネルURL、
+  // フォルダURL、IDの打ち間違いなど）は、<video> として描画すると必ず壊れる。
+  // ダミーを出さない方針に合わせ、何も描画しない。
+  if (YOUTUBE_HOSTS.has(url.hostname) || DRIVE_HOSTS.has(url.hostname)) {
+    return null;
   }
 
   return { kind: "file", src: value };
