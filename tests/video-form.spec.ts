@@ -63,6 +63,71 @@ test.describe("動画枠", () => {
     }
   });
 
+  test("各枠に全画面ボタンがある", async ({ page }) => {
+    await page.goto("/");
+    for (const { id } of VIDEO_SLOTS) {
+      await expect(page.getByTestId(`video-expand-${id}-pc`)).toHaveCount(1);
+      await expect(page.getByTestId(`video-expand-${id}-sp`)).toHaveCount(1);
+    }
+  });
+
+  for (const { id } of VIDEO_SLOTS) {
+    test(`${id}: 全画面ボタンで16:9のまま全体が表示される`, async ({ page }) => {
+      await page.goto("/");
+      const trigger = page.getByTestId(`video-expand-${id}-pc`);
+      await trigger.scrollIntoViewIfNeeded();
+      await trigger.click();
+
+      const modal = page.getByTestId(`video-modal-${id}-pc`);
+      await expect(modal).toBeVisible();
+
+      // 拡大表示では切り取られず、16:9のまま画面内に収まる
+      const geo = await modal.locator(".video-modal__media").evaluate((el) => {
+        const r = el.getBoundingClientRect();
+        return { w: r.width, h: r.height, vw: window.innerWidth, vh: window.innerHeight };
+      });
+      expect(Math.abs(geo.w / geo.h - 16 / 9)).toBeLessThan(0.02);
+      expect(geo.w).toBeLessThanOrEqual(geo.vw + 1);
+      expect(geo.h).toBeLessThanOrEqual(geo.vh + 1);
+      // 枠内表示よりはるかに大きく見える
+      expect(geo.w).toBeGreaterThan(600);
+
+      await page.getByTestId(`video-modal-close-${id}-pc`).click();
+      await expect(modal).toBeHidden();
+    });
+  }
+
+  test("拡大中は背面がスクロールしない／Escapeで閉じる", async ({ page }) => {
+    await page.goto("/");
+    const trigger = page.getByTestId("video-expand-video-company-pc");
+    await trigger.scrollIntoViewIfNeeded();
+    const before = await page.evaluate(() => window.scrollY);
+
+    await trigger.click();
+    await page.mouse.wheel(0, 600);
+    await page.waitForTimeout(300);
+    expect(await page.evaluate(() => window.scrollY)).toBe(before);
+
+    await page.keyboard.press("Escape");
+    await expect(page.getByTestId("video-modal-video-company-pc")).toBeHidden();
+  });
+
+  test("SPでも全画面表示できる", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    const trigger = page.getByTestId("video-expand-video-company-sp");
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+
+    const modal = page.getByTestId("video-modal-video-company-sp");
+    await expect(modal).toBeVisible();
+    const aspect = await modal.locator(".video-modal__media").evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width / r.height;
+    });
+    expect(Math.abs(aspect - 16 / 9)).toBeLessThan(0.02);
+  });
+
   test("4枠すべてに別々の動画が割り当てられている", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto("/");

@@ -12,10 +12,10 @@ import type { VideoSlot } from "@/types/design";
  * どちらも未設定の場合、動画は描画されずデザイン画像のグレー枠がそのまま見える。
  *
  * 対応する動画（Googleドライブ「動画」フォルダ）:
- *   街並みを作る仕事に挑戦しませんか.mp4      -> 会社紹介動画
+ *   白木建設の好きなところ.mp4                -> 会社紹介動画
  *   従業員インタビュー（同業界から）.mp4      -> 社員インタビュー
  *   施工管理の一日.mp4                        -> 実際の現場一日紹介
- *   白木建設の好きなところ.mp4                -> 社長からのメッセージ枠
+ *   街並みを作る仕事に挑戦しませんか.mp4      -> 社長からのメッセージ枠
  * 「社員座談会」「従業員インタビュー（異業種から入社）」は枠数の都合で未使用。
  */
 export const videoSlots: VideoSlot[] = [
@@ -24,8 +24,8 @@ export const videoSlots: VideoSlot[] = [
     sectionId: "job",
     label: "会社紹介動画でリアルな現場を見る",
     envKey: "NEXT_PUBLIC_COMPANY_VIDEO_URL",
-    // 街並みを作る仕事に挑戦しませんか.mp4
-    defaultUrl: "https://drive.google.com/file/d/1jcS5Bb-WqFv9x8bdmRvEBWnjqwUKdH9o/view",
+    // 白木建設の好きなところ.mp4
+    defaultUrl: "https://drive.google.com/file/d/1it8NK0GpgnnLS2Rlz-NI3qi8oUskna4l/view",
     pc: { left: 0.879, top: 68.583, width: 92.871, height: 27.209, boxWidth: 951, boxHeight: 194 },
     sp: { left: 5.333, top: 76.506, width: 89.333, height: 19.076, boxWidth: 335, boxHeight: 190 },
   },
@@ -54,8 +54,8 @@ export const videoSlots: VideoSlot[] = [
     sectionId: "message",
     label: "社長・社員座談会（尺目安3〜5分）",
     envKey: "NEXT_PUBLIC_PRESIDENT_VIDEO_URL",
-    // 白木建設の好きなところ.mp4（座談会は枠数の都合で未使用のため、この枠へ割り当て）
-    defaultUrl: "https://drive.google.com/file/d/1it8NK0GpgnnLS2Rlz-NI3qi8oUskna4l/view",
+    // 街並みを作る仕事に挑戦しませんか.mp4（座談会は枠数の都合で未使用のため、この枠へ割り当て）
+    defaultUrl: "https://drive.google.com/file/d/1jcS5Bb-WqFv9x8bdmRvEBWnjqwUKdH9o/view",
     pc: { left: 11.719, top: 54.942, width: 75.586, height: 33.66, boxWidth: 774, boxHeight: 378 },
     sp: { left: 5.333, top: 79.809, width: 89.333, height: 16.378, boxWidth: 335, boxHeight: 189 },
   },

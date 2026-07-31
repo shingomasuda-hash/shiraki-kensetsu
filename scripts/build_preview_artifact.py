@@ -84,7 +84,7 @@ CLICK_AREAS = [
 
 # src/config/videos.ts と同じ値
 VIDEOS = [
-    ("video-company", "job", "会社紹介動画でリアルな現場を見る<br>街並みを作る仕事に挑戦しませんか.mp4",
+    ("video-company", "job", "会社紹介動画でリアルな現場を見る<br>白木建設の好きなところ.mp4",
      dict(left=0.879, top=68.583, width=92.871, height=27.209, boxWidth=951, boxHeight=194),
      dict(left=5.333, top=76.506, width=89.333, height=19.076, boxWidth=335, boxHeight=190)),
     ("video-employee", "career", "社員インタビュー<br>従業員インタビュー（同業界から）.mp4",
@@ -93,7 +93,7 @@ VIDEOS = [
     ("video-daily", "routine", "実際の現場一日紹介<br>施工管理の一日.mp4",
      dict(left=60.742, top=22.073, width=33.301, height=63.731, boxWidth=341, boxHeight=615),
      dict(left=5.333, top=78.774, width=89.333, height=16.785, boxWidth=335, boxHeight=189)),
-    ("video-president", "message", "社長からのメッセージ枠<br>白木建設の好きなところ.mp4",
+    ("video-president", "message", "社長からのメッセージ枠<br>街並みを作る仕事に挑戦しませんか.mp4",
      dict(left=11.719, top=54.942, width=75.586, height=33.66, boxWidth=774, boxHeight=378),
      dict(left=5.333, top=79.809, width=89.333, height=16.378, boxWidth=335, boxHeight=189)),
 ]
@@ -342,6 +342,22 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   .show-map .hot--internal { background: rgba(34,110,255,.30); outline: 2px solid #2266ff; }
   .show-map .hot--external { background: rgba(255,138,0,.32); outline: 2px solid #ff8a00; }
   .show-map .hot--video { background: rgba(150,60,255,.28); outline: 2px solid #963cff; }
+  /* 実装側の拡大ボタン（全画面表示への導線）の位置を再現 */
+  .hot__expand {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .55);
+    color: #fff;
+    font-size: 15px;
+    line-height: 1;
+    pointer-events: none;
+  }
   .hot__tag { display: none; }
   .show-map .hot__tag {
     display: block;
@@ -464,8 +480,10 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
 
 <p class="note">
   実際に生成した画像と座標をそのまま表示しています。
-  <b>外部URL・動画URL・フォーム送信先は未設定</b>のため、リンクは張られず動画枠はグレーのままです（設定すると有効になります）。
+  <b>外部URL・フォーム送信先は未設定</b>のため、その分のリンクは張られていません（設定すると有効になります）。
   入力欄は実際に入力できます。
+  <b>動画4本は本番では実際に再生できます</b>が、このプレビューは共有用の単一HTMLのため再生はせず、
+  枠の位置と右上の拡大ボタン（<b>⤢</b>＝16:9での全画面表示）の位置のみ再現しています。
 </p>
 
 <div class="legend" id="legend" hidden>
@@ -519,7 +537,9 @@ function render() {
       const box = document.createElement('span');
       box.className = 'hot hot--video';
       box.style.cssText = pct(r);
-      box.innerHTML = `<span class="hot__tag">${v.id}<br>${v.label}</span>`;
+      box.innerHTML =
+        `<span class="hot__expand" aria-hidden="true">⤢</span>` +
+        `<span class="hot__tag">${v.id}<br>${v.label}</span>`;
       el.appendChild(box);
     }
 
