@@ -26,13 +26,12 @@ test.describe("デバッグモード（?debugLinks=true）", () => {
     await expect(area).toHaveAttribute("data-url-configured", "false");
   });
 
-  test("debugLinks=true では未設定の動画枠も確認できる", async ({ page }) => {
-    const configured = Boolean(process.env.NEXT_PUBLIC_EMPLOYEE_INTERVIEW_VIDEO_URL?.trim());
-    test.skip(configured, "NEXT_PUBLIC_EMPLOYEE_INTERVIEW_VIDEO_URL が設定されているためスキップ");
-
+  test("debugLinks=true では動画枠が枠線で確認できる", async ({ page }) => {
     await page.goto("/?debugLinks=true");
     const slot = page.locator('[data-video-id="video-employee"].video-embed--pc');
-    await expect(slot).toHaveAttribute("data-url-configured", "false");
+    await expect(slot).toHaveAttribute("data-url-configured", "true");
+    const outline = await slot.evaluate((el) => getComputedStyle(el).outlineColor);
+    expect(outline).toBe("rgb(128, 0, 128)");
   });
 
   test("debugLinks=true ではフォーム入力欄が可視化される", async ({ page }) => {

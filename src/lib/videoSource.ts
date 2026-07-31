@@ -1,5 +1,6 @@
 export type ResolvedVideo =
   | { kind: "youtube"; embedUrl: string; watchUrl: string }
+  | { kind: "drive"; embedUrl: string; watchUrl: string }
   | { kind: "file"; src: string };
 
 const YOUTUBE_HOSTS = new Set([
@@ -11,6 +12,24 @@ const YOUTUBE_HOSTS = new Set([
   "youtube-nocookie.com",
   "www.youtube-nocookie.com",
 ]);
+
+const DRIVE_HOSTS = new Set(["drive.google.com", "www.drive.google.com"]);
+
+/** URLからGoogleドライブのファイルIDを取り出す。ドライブ以外は null。 */
+const extractDriveId = (url: URL): string | null => {
+  if (!DRIVE_HOSTS.has(url.hostname)) {
+    return null;
+  }
+
+  // https://drive.google.com/file/d/{id}/view
+  const match = url.pathname.match(/\/file\/d\/([^/?#]+)/);
+  if (match) {
+    return match[1];
+  }
+
+  // https://drive.google.com/open?id={id}
+  return url.searchParams.get("id");
+};
 
 /** URLからYouTubeの動画IDを取り出す。YouTube以外は null。 */
 const extractYouTubeId = (url: URL): string | null => {
@@ -72,6 +91,16 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
       kind: "youtube",
       embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?${params.toString()}`,
       watchUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`,
+    };
+  }
+
+  const driveId = extractDriveId(url);
+  if (driveId) {
+    const id = encodeURIComponent(driveId);
+    return {
+      kind: "drive",
+      embedUrl: `https://drive.google.com/file/d/${id}/preview`,
+      watchUrl: `https://drive.google.com/file/d/${id}/view`,
     };
   }
 

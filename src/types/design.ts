@@ -79,7 +79,10 @@ export type VideoSlot = {
   id: string;
   sectionId: SectionId;
   label: string;
+  /** この環境変数が設定されていれば defaultUrl より優先される */
   envKey: string;
+  /** 既定で埋め込む動画URL（YouTube / Googleドライブ / 動画ファイル） */
+  defaultUrl?: string;
   pc: VideoPlacement;
   sp: VideoPlacement;
 };

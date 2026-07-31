@@ -59,7 +59,7 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
           <VideoEmbed
             id={slot.id}
             label={slot.label}
-            url={urlByEnvKey[slot.envKey] ?? null}
+            url={urlByEnvKey[slot.envKey] ?? slot.defaultUrl ?? null}
             placement={slot.pc}
             device="pc"
             debug={debug}
@@ -67,7 +67,7 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
           <VideoEmbed
             id={slot.id}
             label={slot.label}
-            url={urlByEnvKey[slot.envKey] ?? null}
+            url={urlByEnvKey[slot.envKey] ?? slot.defaultUrl ?? null}
             placement={slot.sp}
             device="sp"
             debug={debug}

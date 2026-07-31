@@ -64,7 +64,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
       data-video-kind={resolved.kind}
       style={boxStyle}
     >
-      {resolved.kind === "youtube" ? (
+      {resolved.kind === "youtube" || resolved.kind === "drive" ? (
         <iframe
           className="video-embed__media"
           style={innerStyle}

@@ -1,5 +1,7 @@
 import { test, expect } from "@playwright/test";
 
+// 4枠とも src/config/videos.ts の defaultUrl で動画が割り当て済み。
+// 環境変数を設定した場合はそちらが優先される。
 const VIDEO_SLOTS: Array<{ id: string; env: string }> = [
   { id: "video-company", env: "NEXT_PUBLIC_COMPANY_VIDEO_URL" },
   { id: "video-employee", env: "NEXT_PUBLIC_EMPLOYEE_INTERVIEW_VIDEO_URL" },
@@ -10,19 +12,10 @@ const VIDEO_SLOTS: Array<{ id: string; env: string }> = [
 test.describe("動画枠", () => {
   test.use({ viewport: { width: 1366, height: 1000 } });
 
-  for (const { id, env } of VIDEO_SLOTS) {
-    const configured = Boolean(process.env[env]?.trim());
-
-    test(`${id}: 環境変数${configured ? "設定時に埋め込まれる" : "未設定時は描画されない"}`, async ({
-      page,
-    }) => {
+  for (const { id } of VIDEO_SLOTS) {
+    test(`${id}: 動画が埋め込まれ、16:9のまま枠を覆う`, async ({ page }) => {
       await page.goto("/");
       const slot = page.locator(`[data-video-id="${id}"].video-embed--pc`);
-
-      if (!configured) {
-        await expect(slot).toHaveCount(0);
-        return;
-      }
 
       await expect(slot).toHaveCount(1);
       await slot.scrollIntoViewIfNeeded();
@@ -58,6 +51,28 @@ test.describe("動画枠", () => {
       const src = await frames.nth(i).getAttribute("src");
       expect(src).toContain("youtube-nocookie.com");
     }
+  });
+
+  test("Googleドライブ埋め込みは /preview を使う", async ({ page }) => {
+    await page.goto("/");
+    const frames = page.locator('iframe[src*="drive.google.com"]');
+    const count = await frames.count();
+    for (let i = 0; i < count; i += 1) {
+      const src = await frames.nth(i).getAttribute("src");
+      expect(src).toMatch(/\/file\/d\/[^/]+\/preview$/);
+    }
+  });
+
+  test("4枠すべてに別々の動画が割り当てられている", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    const srcs = await page.evaluate(() =>
+      Array.from(document.querySelectorAll(".video-embed--pc iframe")).map((f) =>
+        f.getAttribute("src"),
+      ),
+    );
+    expect(srcs).toHaveLength(4);
+    expect(new Set(srcs).size).toBe(4);
   });
 });
 

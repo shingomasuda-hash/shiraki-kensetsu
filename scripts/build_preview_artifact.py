@@ -84,16 +84,16 @@ CLICK_AREAS = [
 
 # src/config/videos.ts と同じ値
 VIDEOS = [
-    ("video-company", "job", "会社紹介動画でリアルな現場を見る",
+    ("video-company", "job", "会社紹介動画でリアルな現場を見る<br>街並みを作る仕事に挑戦しませんか.mp4",
      dict(left=0.879, top=68.583, width=92.871, height=27.209, boxWidth=951, boxHeight=194),
      dict(left=5.333, top=76.506, width=89.333, height=19.076, boxWidth=335, boxHeight=190)),
-    ("video-employee", "career", "社員インタビュー（未経験入社／成長の歩み）",
+    ("video-employee", "career", "社員インタビュー<br>従業員インタビュー（同業界から）.mp4",
      dict(left=7.617, top=66.459, width=84.961, height=31.495, boxWidth=870, boxHeight=354),
      dict(left=5.333, top=89.203, width=89.333, height=8.758, boxWidth=335, boxHeight=189)),
-    ("video-daily", "routine", "実際の現場一日紹介",
+    ("video-daily", "routine", "実際の現場一日紹介<br>施工管理の一日.mp4",
      dict(left=60.742, top=22.073, width=33.301, height=63.731, boxWidth=341, boxHeight=615),
      dict(left=5.333, top=78.774, width=89.333, height=16.785, boxWidth=335, boxHeight=189)),
-    ("video-president", "message", "社長・社員座談会（尺目安3〜5分）",
+    ("video-president", "message", "社長からのメッセージ枠<br>白木建設の好きなところ.mp4",
      dict(left=11.719, top=54.942, width=75.586, height=33.66, boxWidth=774, boxHeight=378),
      dict(left=5.333, top=79.809, width=89.333, height=16.378, boxWidth=335, boxHeight=189)),
 ]
@@ -519,7 +519,7 @@ function render() {
       const box = document.createElement('span');
       box.className = 'hot hot--video';
       box.style.cssText = pct(r);
-      box.innerHTML = `<span class="hot__tag">${v.id}<br>${v.label}<br>URL未設定</span>`;
+      box.innerHTML = `<span class="hot__tag">${v.id}<br>${v.label}</span>`;
       el.appendChild(box);
     }
 
