@@ -100,11 +100,14 @@ test.describe("動画枠", () => {
     }
   });
 
-  test("各枠に全画面ボタンがある", async ({ page }) => {
+  test("枠内で小さく見える枠にだけ全画面ボタンを出す", async ({ page }) => {
     await page.goto("/");
     for (const { id } of VIDEO_SLOTS) {
-      await expect(page.getByTestId(`video-expand-${id}-pc`)).toHaveCount(1);
-      await expect(page.getByTestId(`video-expand-${id}-sp`)).toHaveCount(1);
+      const slot = page.locator(`[data-video-id="${id}"].video-embed--pc`);
+      const letterboxed = (await slot.getAttribute("data-video-fit")) === "contain";
+      await expect(page.getByTestId(`video-expand-${id}-pc`)).toHaveCount(letterboxed ? 1 : 0);
+      // SPは等倍表示なので、プレーヤー自身の全画面と二重にならないよう出さない
+      await expect(page.getByTestId(`video-expand-${id}-sp`)).toHaveCount(0);
     }
   });
 
@@ -114,6 +117,10 @@ test.describe("動画枠", () => {
 
       const inline = page.locator(`[data-video-id="${id}"].video-embed--pc`);
       await inline.scrollIntoViewIfNeeded();
+      test.skip(
+        (await inline.getAttribute("data-video-fit")) !== "contain",
+        "枠内で等倍に見えている枠には拡大ボタンを出していない",
+      );
       const inlineArea = await inline
         .locator(".video-embed__media")
         .evaluate((el) => el.getBoundingClientRect().width * el.getBoundingClientRect().height);
@@ -164,28 +171,77 @@ test.describe("動画枠", () => {
     await expect(page.getByTestId("video-modal-video-company-pc")).toBeHidden();
   });
 
-  test("SPでも全画面表示できる", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("拡大中は同じ動画のプレーヤーが二重にならない", async ({ page }) => {
     await page.goto("/");
-    const trigger = page.getByTestId("video-expand-video-company-sp");
-    await trigger.scrollIntoViewIfNeeded();
-    await trigger.click();
+    const countPlayers = () =>
+      page.evaluate(() =>
+        Array.from(document.querySelectorAll("iframe")).filter((f) =>
+          f.getAttribute("src")?.includes("xuvIO0sUyl8"),
+        ).length,
+      );
 
-    const modal = page.getByTestId("video-modal-video-company-sp");
-    await expect(modal).toBeVisible();
-    const geo = await modal.locator(".video-modal__media").evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      return {
-        aspect: r.width / r.height,
-        declared: Number(
-          getComputedStyle(el.closest(".video-modal")!).getPropertyValue("--video-aspect"),
-        ),
-        w: r.width,
-        vw: window.innerWidth,
-      };
+    const trigger = page.getByTestId("video-expand-video-company-pc");
+    await trigger.scrollIntoViewIfNeeded();
+    const before = await countPlayers();
+
+    await trigger.click();
+    await expect(page.getByTestId("video-modal-video-company-pc")).toBeVisible();
+    // 拡大中は枠内のプレーヤーを取り外すので、総数は増えない
+    expect(await countPlayers()).toBe(before);
+    // 枠の中にプレーヤーが残っていないこと
+    expect(
+      await page.locator('[data-video-id="video-company"].video-embed--pc iframe').count(),
+    ).toBe(0);
+
+    await page.getByTestId("video-modal-close-video-company-pc").click();
+    await expect(page.getByTestId("video-modal-video-company-pc")).toBeHidden();
+    expect(await countPlayers()).toBe(before);
+  });
+
+  test.describe("SPの動画は等倍で表示される", () => {
+    test.use({ viewport: { width: 390, height: 844 } });
+
+    for (const { id } of VIDEO_SLOTS) {
+      test(`${id}: 枠が動画本来の比率と一致し、下のセクションに重ならない`, async ({ page }) => {
+        await page.goto("/");
+        const slot = page.locator(`[data-video-id="${id}"].video-embed--sp`);
+        await slot.scrollIntoViewIfNeeded();
+
+        const geo = await slot.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const media = el.querySelector(".video-embed__media")!.getBoundingClientRect();
+          const section = el.closest(".design-section")!.getBoundingClientRect();
+          return {
+            aspect: r.width / r.height,
+            boxW: r.width,
+            boxH: r.height,
+            mediaW: media.width,
+            mediaH: media.height,
+            bottomGap: r.bottom - section.bottom,
+            innerW: document.querySelector(".design-section__inner")!.getBoundingClientRect().width,
+          };
+        });
+
+        // 縦型（9:16）そのままの比率
+        expect(Math.abs(geo.aspect - 9 / 16)).toBeLessThan(0.005);
+        // 動画が枠を過不足なく満たす（拡大も縮小もトリミングもない）
+        expect(Math.abs(geo.mediaW - geo.boxW)).toBeLessThan(1);
+        expect(Math.abs(geo.mediaH - geo.boxH)).toBeLessThan(1);
+        // 以前の枠(189px)より大幅に大きい
+        expect(geo.boxH).toBeGreaterThan(400);
+        // 伸ばした分の余白がセクション下端と一致し、次のセクションへ重ならない
+        expect(Math.abs(geo.bottomGap)).toBeLessThan(2);
+      });
+    }
+
+    test("等倍表示にしても横スクロールは発生しない", async ({ page }) => {
+      await page.goto("/");
+      const { scrollW, clientW } = await page.evaluate(() => ({
+        scrollW: document.documentElement.scrollWidth,
+        clientW: document.documentElement.clientWidth,
+      }));
+      expect(scrollW).toBeLessThanOrEqual(clientW);
     });
-    expect(Math.abs(geo.aspect - geo.declared)).toBeLessThan(0.02);
-    expect(geo.w).toBeLessThanOrEqual(geo.vw + 1);
   });
 
   test("4枠すべてに別々の動画が割り当てられている", async ({ page }) => {

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-28T08:44:29+0000",
+  "generatedAt": "2026-08-03T09:10:08+0000",
   "sections": [
     {
       "id": "hero",
@@ -7,13 +7,15 @@
         "file": "/design/pc/01-hero.webp",
         "width": 2048,
         "height": 1346,
-        "bytes": 634480
+        "bytes": 634480,
+        "bottomColor": "#9fb3a8"
       },
       "sp": {
         "file": "/design/sp/01-hero.webp",
         "width": 750,
         "height": 1124,
-        "bytes": 224398
+        "bytes": 224398,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -22,13 +24,15 @@
         "file": "/design/pc/02-job.webp",
         "width": 2048,
         "height": 1426,
-        "bytes": 203396
+        "bytes": 203396,
+        "bottomColor": "#ffffff"
       },
       "sp": {
         "file": "/design/sp/02-job.webp",
         "width": 750,
         "height": 1992,
-        "bytes": 157742
+        "bytes": 157742,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -37,13 +41,15 @@
         "file": "/design/pc/03-career.webp",
         "width": 2048,
         "height": 2248,
-        "bytes": 268414
+        "bytes": 268414,
+        "bottomColor": "#edf8f0"
       },
       "sp": {
         "file": "/design/sp/03-career.webp",
         "width": 750,
         "height": 4316,
-        "bytes": 281248
+        "bytes": 281248,
+        "bottomColor": "#edf8f0"
       }
     },
     {
@@ -52,13 +58,15 @@
         "file": "/design/pc/04-advantage.webp",
         "width": 2048,
         "height": 1540,
-        "bytes": 284346
+        "bytes": 284346,
+        "bottomColor": "#fefefe"
       },
       "sp": {
         "file": "/design/sp/04-advantage.webp",
         "width": 750,
         "height": 2640,
-        "bytes": 206782
+        "bytes": 206782,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -67,13 +75,15 @@
         "file": "/design/pc/05-for-you.webp",
         "width": 2048,
         "height": 1354,
-        "bytes": 212118
+        "bytes": 212118,
+        "bottomColor": "#edf8f0"
       },
       "sp": {
         "file": "/design/sp/05-for-you.webp",
         "width": 750,
         "height": 2430,
-        "bytes": 147880
+        "bytes": 147880,
+        "bottomColor": "#edf8f0"
       }
     },
     {
@@ -82,13 +92,15 @@
         "file": "/design/pc/06-numbers.webp",
         "width": 2048,
         "height": 1216,
-        "bytes": 220948
+        "bytes": 220948,
+        "bottomColor": "#ffffff"
       },
       "sp": {
         "file": "/design/sp/06-numbers.webp",
         "width": 750,
         "height": 1697,
-        "bytes": 114234
+        "bytes": 114234,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -97,13 +109,15 @@
         "file": "/design/pc/07-routine.webp",
         "width": 2048,
         "height": 1930,
-        "bytes": 161390
+        "bytes": 161390,
+        "bottomColor": "#ffffff"
       },
       "sp": {
         "file": "/design/sp/07-routine.webp",
         "width": 750,
         "height": 2252,
-        "bytes": 113356
+        "bytes": 113356,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -112,13 +126,15 @@
         "file": "/design/pc/08-message.webp",
         "width": 2048,
         "height": 2246,
-        "bytes": 218568
+        "bytes": 218568,
+        "bottomColor": "#f7f7f7"
       },
       "sp": {
         "file": "/design/sp/08-message.webp",
         "width": 750,
         "height": 2308,
-        "bytes": 148658
+        "bytes": 148658,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -127,13 +143,15 @@
         "file": "/design/pc/09-requirements.webp",
         "width": 2048,
         "height": 1494,
-        "bytes": 135524
+        "bytes": 135524,
+        "bottomColor": "#dfede3"
       },
       "sp": {
         "file": "/design/sp/09-requirements.webp",
         "width": 750,
         "height": 1704,
-        "bytes": 86404
+        "bytes": 86404,
+        "bottomColor": "#e6f6eb"
       }
     },
     {
@@ -142,13 +160,15 @@
         "file": "/design/pc/10-flow.webp",
         "width": 2048,
         "height": 780,
-        "bytes": 119470
+        "bytes": 119470,
+        "bottomColor": "#ffffff"
       },
       "sp": {
         "file": "/design/sp/10-flow.webp",
         "width": 750,
         "height": 1248,
-        "bytes": 98488
+        "bytes": 98488,
+        "bottomColor": "#ffffff"
       }
     },
     {
@@ -157,13 +177,15 @@
         "file": "/design/pc/11-faq.webp",
         "width": 2048,
         "height": 1224,
-        "bytes": 138110
+        "bytes": 138110,
+        "bottomColor": "#d8f1de"
       },
       "sp": {
         "file": "/design/sp/11-faq.webp",
         "width": 750,
         "height": 1602,
-        "bytes": 111932
+        "bytes": 111932,
+        "bottomColor": "#d8f1de"
       }
     },
     {
@@ -172,13 +194,15 @@
         "file": "/design/pc/12-contact.webp",
         "width": 2048,
         "height": 1076,
-        "bytes": 296970
+        "bytes": 296970,
+        "bottomColor": "#2d684e"
       },
       "sp": {
         "file": "/design/sp/12-contact.webp",
         "width": 750,
         "height": 1322,
-        "bytes": 169190
+        "bytes": 169190,
+        "bottomColor": "#417c58"
       }
     },
     {
@@ -187,13 +211,15 @@
         "file": "/design/pc/13-footer.webp",
         "width": 2048,
         "height": 400,
-        "bytes": 39076
+        "bytes": 39076,
+        "bottomColor": "#1a3b2a"
       },
       "sp": {
         "file": "/design/sp/13-footer.webp",
         "width": 750,
         "height": 524,
-        "bytes": 32096
+        "bytes": 32096,
+        "bottomColor": "#264535"
       }
     }
   ]

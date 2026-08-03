@@ -66,11 +66,50 @@ img {
   overflow: hidden;
 }
 
+/*
+ * 画像そのものの帯。高さはデザイン画像の高さと完全に一致する。
+ * ぼかし背景をこの帯に限定することで、動画枠を下へ伸ばして
+ * セクションが背高くなっても、左右のぼかしが画像とずれない。
+ */
+.design-section__band {
+  position: relative;
+  width: 100%;
+}
+
 .design-section__inner {
   position: relative;
   width: 100%;
   margin: 0 auto;
   padding: 0;
+}
+
+/*
+ * SPで動画を等倍表示すると枠が画像の下端をはみ出すため、
+ * その分の余白をセクション下部に作る。
+ * 高さは画像の表示幅を基準にした割合（--tail-sp）で指定するので、
+ * 画面幅が変わっても動画の下端とぴったり一致する。
+ * 色はセクション画像の下端の色（--tail-color）に合わせる。
+ */
+.design-section__tail {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  /*
+   * 割合指定のpaddingは「親要素の幅」を基準にするため、
+   * 画像と同じ幅(375px上限)の親を挟んでから割合を効かせる。
+   */
+  .design-section__tail {
+    display: block;
+    width: 100%;
+    max-width: 375px;
+    margin: 0 auto;
+  }
+
+  .design-section__tail-inner {
+    width: 100%;
+    padding-bottom: var(--tail-sp, 0px);
+  }
 }
 
 /*
@@ -87,7 +126,13 @@ img {
   pointer-events: none;
   background-image: var(--bleed-pc);
   background-repeat: no-repeat;
-  background-size: 100% 100%;
+  /*
+   * 画像の高さぶんだけ敷き、その下（動画を伸ばした余白）は画像下端の色で続ける。
+   * 同じ要素の中で色を続けてからぼかすので、境目に線が出ない。
+   */
+  background-size: 100% var(--band-pc, 100%);
+  background-position: top center;
+  background-color: var(--tail-color, transparent);
   filter: blur(36px);
   /* ぼかしで端が透けるのを防ぐため、横方向にだけ少し広げる */
   transform: scaleX(1.08);
@@ -96,6 +141,7 @@ img {
 @media (max-width: 767px) {
   .design-section::before {
     background-image: var(--bleed-sp);
+    background-size: 100% var(--band-sp, 100%);
   }
 }
 
@@ -186,6 +232,11 @@ img {
  */
 .video-embed[data-video-fit="contain"] .video-embed__media {
   object-fit: contain;
+}
+
+/* 等倍表示（枠の高さを動画の比率から決めている）では、枠と動画が一致する */
+.video-embed[data-native-aspect="true"] {
+  background: #000000;
 }
 
 @media (max-width: 767px) {

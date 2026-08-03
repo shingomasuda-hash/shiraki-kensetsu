@@ -152,6 +152,18 @@ def fit_in_box(box_w: int, box_h: int) -> dict:
     return {"mode": mode, "w": round(w, 3), "h": round(h, 3)}
 
 
+def sp_tail(section_id: str, img_w: int, img_h: int) -> float:
+    """SPで動画を等倍表示したとき、画像の下端をはみ出す量（画像表示幅を1とした割合）。"""
+    tail = 0.0
+    for (_i, sid, _l, _pc, sp) in VIDEOS:
+        if sid != section_id:
+            continue
+        image_ratio = img_h / img_w
+        overflow = image_ratio * (sp["top"] / 100 - 1) + sp["width"] / 100 / VIDEO_ASPECT
+        tail = max(tail, overflow)
+    return round(max(0.0, tail), 5)
+
+
 def data_uri(path: Path) -> str:
     return "data:image/webp;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
 
@@ -164,11 +176,18 @@ def main() -> None:
     for sid, fname, label in SECTIONS:
         pc = ROOT / "public" / "design" / "pc" / f"{fname}.webp"
         sp = ROOT / "public" / "design" / "sp" / f"{fname}.webp"
+        sp_w, sp_h = dims[sid]["sp"]["width"], dims[sid]["sp"]["height"]
         payload.append({
             "id": sid,
             "label": label,
             "pc": {"src": data_uri(pc), "w": dims[sid]["pc"]["width"], "h": dims[sid]["pc"]["height"]},
-            "sp": {"src": data_uri(sp), "w": dims[sid]["sp"]["width"], "h": dims[sid]["sp"]["height"]},
+            "sp": {
+                "src": data_uri(sp),
+                "w": sp_w,
+                "h": sp_h,
+                "tail": sp_tail(sid, sp_w, sp_h),
+                "bottomColor": dims[sid]["sp"]["bottomColor"],
+            },
         })
 
     areas = [
@@ -181,7 +200,8 @@ def main() -> None:
             "section": s,
             "label": l,
             "pc": {**pc, "fit": fit_in_box(pc["boxWidth"], pc["boxHeight"])},
-            "sp": {**sp, "fit": fit_in_box(sp["boxWidth"], sp["boxHeight"])},
+            # SPは動画本来の比率（等倍）で表示するため、枠の高さは比率から決まる
+            "sp": {**sp, "fit": {"mode": "native", "w": 100, "h": 100}, "native": True},
         }
         for (i, s, l, pc, sp) in VIDEOS
     ]
@@ -342,6 +362,7 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   .band { position: relative; overflow: hidden; }
 
   .sec { position: relative; line-height: 0; font-size: 0; }
+  .sec > img { position: relative; z-index: 1; }
   .sec img { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
   /* 余白側は、そのセクション画像をぼかしたものを敷いて埋める（本体は拡大しない） */
   .sec::before {
@@ -357,6 +378,8 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
     pointer-events: none;
   }
   .bleedwrap { position: relative; overflow: hidden; }
+  /* 動画を等倍表示したときのはみ出しを受け止める余白 */
+  .tail { width: 100%; }
 
   .hot {
     position: absolute;
@@ -520,8 +543,9 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   <b>外部URL・フォーム送信先は未設定</b>のため、その分のリンクは張られていません（設定すると有効になります）。
   入力欄は実際に入力できます。
   動画4本は<b>YouTube限定公開のShorts（縦型9:16）</b>を割り当て済みです。
-  このプレビューは共有用の単一HTMLのため再生はせず、枠の位置・実際に動画が入る範囲（濃い紫）・
-  右上の拡大ボタン（<b>⤢</b>＝本来の比率での全画面表示）を再現しています。
+  <b>SPでは動画を等倍（9:16そのまま）で再生</b>するため、枠をデザイン値より広げ、
+  その分セクション下に余白を足しています。PCはデザインの枠のままです。
+  このプレビューは共有用の単一HTMLのため再生はせず、枠の位置と実際に動画が入る範囲（濃い紫）を再現しています。
 </p>
 
 <div class="legend" id="legend" hidden>
@@ -540,6 +564,7 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
 
 <script>
 const DATA = __DATA__;
+const VIDEO_ASPECT = 9 / 16;
 
 const frame = document.getElementById('frame');
 const stage = document.getElementById('stage');
@@ -576,11 +601,29 @@ function render() {
       box.className = 'hot hot--video';
       box.style.cssText = pct(r);
       const f = r.fit;
+      if (r.native) {
+        // SPは動画本来の比率で表示するため、高さは幅から決まる（枠は下へはみ出す）
+        box.style.cssText =
+          `left:${r.left}%;top:${r.top}%;width:${r.width}%;height:auto;aspect-ratio:${VIDEO_ASPECT}`;
+      }
+      const note = r.native ? '等倍で再生' : (f.mode === 'cover' ? '枠を埋める' : '枠内へ収める');
       box.innerHTML =
         `<span class="hot__fit" data-fit="${f.mode}" style="width:${f.w}%;height:${f.h}%"></span>` +
-        `<span class="hot__expand" aria-hidden="true">⤢</span>` +
-        `<span class="hot__tag">${v.id}<br>${v.label}<br>${f.mode === 'cover' ? '枠を埋める' : '枠内へ収める'}</span>`;
+        (r.native ? '' : `<span class="hot__expand" aria-hidden="true">⤢</span>`) +
+        `<span class="hot__tag">${v.id}<br>${v.label}<br>${note}</span>`;
       el.appendChild(box);
+    }
+
+    // SPで動画がはみ出す分だけ、セクションの下に余白を足す。
+    // 画像の上に重ねた要素の座標は画像の高さを基準にしているため、
+    // 余白は .sec の中ではなく外（画像と同じ幅の .frame の中）へ置く。
+    const tail = device === 'sp' ? (sec.sp.tail || 0) : 0;
+    let tailEl = null;
+    if (tail > 0) {
+      band.style.background = sec.sp.bottomColor;
+      tailEl = document.createElement('div');
+      tailEl.className = 'tail';
+      tailEl.style.paddingBottom = (tail * 100).toFixed(4) + '%';
     }
 
     if (sec.id === 'hero' && device === 'sp') {
@@ -633,6 +676,7 @@ function render() {
     const inner = document.createElement('div');
     inner.className = 'frame';
     inner.appendChild(el);
+    if (tailEl) inner.appendChild(tailEl);
     band.appendChild(inner);
     frame.appendChild(band);
   }

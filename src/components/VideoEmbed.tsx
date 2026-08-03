@@ -12,6 +12,12 @@ type VideoEmbedProps = {
   placement: VideoPlacement;
   device: "pc" | "sp";
   debug: boolean;
+  /**
+   * 枠の高さをデザイン値ではなく動画本来の比率から決める。
+   * 動画は等倍（トリミングも縮小もなし）で表示され、
+   * 枠からはみ出した分はセクション下部の余白が受け止める。
+   */
+  nativeAspect?: boolean;
 };
 
 const subscribeNoop = () => () => {};
@@ -70,7 +76,15 @@ function VideoMedia({
  * （レイアウトは動かさない）。そのままでは全体が見えないので、
  * 枠の隅に拡大ボタンを置き、全画面で比率どおり見られるようにしている。
  */
-export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEmbedProps) {
+export function VideoEmbed({
+  id,
+  label,
+  url,
+  placement,
+  device,
+  debug,
+  nativeAspect = false,
+}: VideoEmbedProps) {
   const resolved = resolveVideoSource(url);
   const [expanded, setExpanded] = useState(false);
   const mounted = useIsMounted();
@@ -99,7 +113,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
     };
   }, [expanded]);
 
-  const boxStyle = {
+  const boxStyle: React.CSSProperties = {
     left: `${placement.left}%`,
     top: `${placement.top}%`,
     width: `${placement.width}%`,
@@ -129,7 +143,19 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
     );
   }
 
-  const inner = fitSize(placement.boxWidth, placement.boxHeight, resolved.aspect);
+  // 等倍表示のときは、枠の高さを動画の比率から決めるので拡大も縮小も起きない。
+  const inner = nativeAspect
+    ? ({ mode: "cover", width: "100%", height: "100%" } as const)
+    : fitSize(placement.boxWidth, placement.boxHeight, resolved.aspect);
+
+  if (nativeAspect) {
+    boxStyle.height = "auto";
+    boxStyle.aspectRatio = String(resolved.aspect);
+  }
+
+  // 枠内で等倍に見えているものは、拡大表示するものが残っていない。
+  // プレーヤー自身の全画面ボタンと二重にならないよう、拡大ボタンを出さない。
+  const canExpand = !nativeAspect && inner.mode === "contain";
 
   /** ネイティブの全画面表示へ切り替える（対応していない環境では何もしない） */
   const requestNativeFullscreen = () => {
@@ -152,34 +178,44 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
         data-url-configured="true"
         data-video-kind={resolved.kind}
         data-video-fit={inner.mode}
+        data-native-aspect={nativeAspect ? "true" : "false"}
         style={boxStyle}
       >
-        <VideoMedia
-          resolved={resolved}
-          label={label}
-          className="video-embed__media"
-          style={{ width: inner.width, height: inner.height }}
-        />
+        {/*
+          拡大中は枠内のプレーヤーを取り外す。
+          同じ動画のiframeが2つ同時に存在すると、音が二重に鳴ったり
+          全画面表示が二重に見えたりするため。
+        */}
+        {expanded ? null : (
+          <VideoMedia
+            resolved={resolved}
+            label={label}
+            className="video-embed__media"
+            style={{ width: inner.width, height: inner.height }}
+          />
+        )}
 
-        <button
-          ref={triggerRef}
-          type="button"
-          className="video-embed__expand"
-          aria-label={`${label}を全画面で見る`}
-          data-testid={`video-expand-${id}-${device}`}
-          onClick={() => setExpanded(true)}
-        >
-          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-            <path
-              d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </button>
+        {canExpand ? (
+          <button
+            ref={triggerRef}
+            type="button"
+            className="video-embed__expand"
+            aria-label={`${label}を全画面で見る`}
+            data-testid={`video-expand-${id}-${device}`}
+            onClick={() => setExpanded(true)}
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+              <path
+                d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        ) : null}
       </div>
 
       {mounted && expanded

@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 try:
-    from PIL import Image
+    from PIL import Image, ImageStat
 except ImportError:
     print("Pillow がインストールされていません。")
     print("  pip install pillow")
@@ -97,6 +97,19 @@ class SectionResult:
     height: int
     src_bytes: int
     webp_bytes: int
+    bottom_color: str
+
+
+def bottom_edge_color(image: Image.Image) -> str:
+    """画像の最下部の代表色を取り、`#rrggbb` で返す。
+
+    動画枠を下へ伸ばした分の余白を、デザインの背景色と同じ色で埋めるために使う。
+    最下行1pxだけだと圧縮ノイズを拾うため、下端の数%を平均する。
+    """
+    band_h = max(1, round(image.height * 0.01))
+    band = image.crop((0, image.height - band_h, image.width, image.height)).convert("RGB")
+    r, g, b = (round(v) for v in ImageStat.Stat(band).mean)
+    return f"#{r:02x}{g:02x}{b:02x}"
 
 
 def log(msg: str) -> None:
@@ -198,6 +211,7 @@ def generate_device(
                 height=crop.height,
                 src_bytes=src_bytes,
                 webp_bytes=webp_bytes,
+                bottom_color=bottom_edge_color(crop),
             )
         )
 
@@ -259,6 +273,7 @@ def write_manifest(all_results: list[SectionResult]) -> None:
             "width": r.width,
             "height": r.height,
             "bytes": r.webp_bytes,
+            "bottomColor": r.bottom_color,
         }
 
     for section in SECTIONS:
@@ -276,6 +291,8 @@ def write_manifest(all_results: list[SectionResult]) -> None:
         "  file: string;",
         "  width: number;",
         "  height: number;",
+        "  /** 画像下端の代表色。動画枠を下へ伸ばした余白を埋めるのに使う。 */",
+        "  bottomColor: string;",
         "};",
         "",
         "export type GeneratedSectionImages = {",
@@ -296,6 +313,7 @@ def write_manifest(all_results: list[SectionResult]) -> None:
             lines.append(f'      file: "{info["file"]}",')
             lines.append(f'      width: {info["width"]},')
             lines.append(f'      height: {info["height"]},')
+            lines.append(f'      bottomColor: "{info["bottomColor"]}",')
             lines.append("    },")
         lines.append("  },")
     lines.append("];")
