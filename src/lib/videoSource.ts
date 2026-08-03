@@ -1,7 +1,13 @@
-export type ResolvedVideo =
+/** 横長動画（16:9）の比率。判別できない場合の既定値。 */
+export const LANDSCAPE_ASPECT = 16 / 9;
+/** 縦型動画（9:16）の比率。YouTube Shorts など。 */
+export const PORTRAIT_ASPECT = 9 / 16;
+
+export type ResolvedVideo = { aspect: number } & (
   | { kind: "youtube"; embedUrl: string; watchUrl: string }
   | { kind: "drive"; embedUrl: string; watchUrl: string }
-  | { kind: "file"; src: string };
+  | { kind: "file"; src: string }
+);
 
 const YOUTUBE_HOSTS = new Set([
   "youtube.com",
@@ -87,8 +93,14 @@ const extractStartSeconds = (url: URL): number | null => {
  * - それ以外: 直接再生する動画ファイルとして扱う
  *
  * URLが未設定・解析不能な場合は null を返し、動画は描画されない。
+ *
+ * `aspectOverride` を渡すと、URLから推定した比率より優先される
+ * （Shortsではない縦型動画など、URLだけでは判別できない場合に使う）。
  */
-export const resolveVideoSource = (raw: string | null | undefined): ResolvedVideo | null => {
+export const resolveVideoSource = (
+  raw: string | null | undefined,
+  aspectOverride?: number,
+): ResolvedVideo | null => {
   const value = raw?.trim();
   if (!value) {
     return null;
@@ -104,6 +116,10 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     return null;
   }
+
+  // Shorts は縦型（9:16）で配信される。URLの形で確実に判別できる。
+  const isShorts = url.pathname.includes("/shorts/");
+  const aspect = aspectOverride ?? (isShorts ? PORTRAIT_ASPECT : LANDSCAPE_ASPECT);
 
   const youtubeId = extractYouTubeId(url);
   if (youtubeId) {
@@ -122,6 +138,7 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
     }
     return {
       kind: "youtube",
+      aspect,
       embedUrl: `https://www.youtube-nocookie.com/embed/${encodeURIComponent(youtubeId)}?${params.toString()}`,
       watchUrl: `https://www.youtube.com/watch?v=${encodeURIComponent(youtubeId)}`,
     };
@@ -132,6 +149,7 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
     const id = encodeURIComponent(driveId);
     return {
       kind: "drive",
+      aspect,
       embedUrl: `https://drive.google.com/file/d/${id}/preview`,
       watchUrl: `https://drive.google.com/file/d/${id}/view`,
     };
@@ -144,22 +162,52 @@ export const resolveVideoSource = (raw: string | null | undefined): ResolvedVide
     return null;
   }
 
-  return { kind: "file", src: value };
+  return { kind: "file", aspect, src: value };
 };
 
 /**
- * 16:9の動画を、比率の異なる枠へ「はみ出させて埋める」ための寸法を返す。
- * 枠の中央を基準に、足りない方向へ拡大する（object-fit: cover 相当）。
+ * 枠を埋めるために動画を拡大してよい上限。
+ *
+ * 1.5 = 片方向の3分の1までのトリミングは許容し、枠を隙間なく埋める。
+ * これを超える場合は切り取られる量が多すぎるため、
+ * 枠内へ収める（contain）に切り替える。
  */
-export const coverSize = (boxWidth: number, boxHeight: number) => {
-  const videoAspect = 16 / 9;
-  const boxAspect = boxWidth / boxHeight;
+const COVER_MAX_SCALE = 1.5;
 
-  if (boxAspect > videoAspect) {
-    // 枠が16:9より横長 -> 幅を合わせ、高さをはみ出させる
-    return { width: "100%", height: `${(boxAspect / videoAspect) * 100}%` };
+export type VideoFit = {
+  mode: "cover" | "contain";
+  width: string;
+  height: string;
+};
+
+/**
+ * 動画を枠へ収めるための寸法を返す。枠の中央を基準にする。
+ *
+ * - 枠と動画の比率が近い場合は「枠を埋める」（object-fit: cover 相当）。
+ *   はみ出した分は枠でクリップされ、レイアウトは動かない。
+ * - 比率が大きく違う場合（横長の枠に縦型のShortsを入れる等）は
+ *   「枠内へ収める」（contain 相当）。トリミングは発生しない。
+ */
+export const fitSize = (
+  boxWidth: number,
+  boxHeight: number,
+  videoAspect: number = LANDSCAPE_ASPECT,
+): VideoFit => {
+  const boxAspect = boxWidth / boxHeight;
+  const boxIsWider = boxAspect > videoAspect;
+  // 枠と動画の比率の開き（常に1以上）
+  const ratio = boxIsWider ? boxAspect / videoAspect : videoAspect / boxAspect;
+  const mode = ratio <= COVER_MAX_SCALE ? "cover" : "contain";
+
+  const pct = (n: number) => `${Number((n * 100).toFixed(4))}%`;
+
+  if (mode === "cover") {
+    return boxIsWider
+      ? { mode, width: "100%", height: pct(ratio) } // 幅を合わせ、高さをはみ出させる
+      : { mode, width: pct(ratio), height: "100%" }; // 高さを合わせ、幅をはみ出させる
   }
 
-  // 枠が16:9より縦長 -> 高さを合わせ、幅をはみ出させる
-  return { width: `${(videoAspect / boxAspect) * 100}%`, height: "100%" };
+  return boxIsWider
+    ? { mode, width: pct(1 / ratio), height: "100%" } // 高さいっぱい、左右に余白
+    : { mode, width: "100%", height: pct(1 / ratio) }; // 幅いっぱい、上下に余白
 };

@@ -179,6 +179,15 @@ img {
   object-fit: cover;
 }
 
+/*
+ * 枠と動画の比率が大きく違う場合（横長の枠に縦型のShorts等）は
+ * 枠内へ収める。要素自体を動画の比率で置いているため、
+ * <video> 側でも切り取らない。余白はデザインのグレー枠がそのまま見える。
+ */
+.video-embed[data-video-fit="contain"] .video-embed__media {
+  object-fit: contain;
+}
+
 @media (max-width: 767px) {
   .video-embed--pc {
     display: none;
@@ -192,8 +201,8 @@ img {
 }
 
 /*
- * 枠がデザイン上16:9ではないため、動画は枠を埋めるようクリップされる。
- * そのままでは全体が見えないので、隅に拡大ボタンを置く。
+ * 枠は動画の比率と一致しないため、枠内では小さく／一部が切れて表示される。
+ * 本来の比率で見られるよう、隅に拡大ボタンを置く。
  */
 .video-embed__expand {
   position: absolute;
@@ -305,9 +314,10 @@ img {
   background: #000000;
 }
 
+/* --video-aspect は動画本来の比率（16:9 なら 1.7778、Shorts なら 0.5625）。 */
 .video-modal__media {
-  width: min(100%, calc((100vh - 76px) * 16 / 9));
-  aspect-ratio: 16 / 9;
+  width: min(100%, calc((100vh - 76px) * var(--video-aspect, 1.7778)));
+  aspect-ratio: var(--video-aspect, 1.7778);
   max-height: 100%;
   border: 0;
   display: block;
@@ -316,7 +326,7 @@ img {
 
 /* ネイティブ全画面時は画面いっぱいに */
 .video-modal__stage:fullscreen .video-modal__media {
-  width: min(100vw, calc(100vh * 16 / 9));
+  width: min(100vw, calc(100vh * var(--video-aspect, 1.7778)));
 }
 
 /* ---------- お問い合わせフォーム（画像の上に重ねる） ---------- */

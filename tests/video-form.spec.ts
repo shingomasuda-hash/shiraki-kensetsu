@@ -13,7 +13,7 @@ test.describe("動画枠", () => {
   test.use({ viewport: { width: 1366, height: 1000 } });
 
   for (const { id } of VIDEO_SLOTS) {
-    test(`${id}: 動画が埋め込まれ、16:9のまま枠を覆う`, async ({ page }) => {
+    test(`${id}: 動画が埋め込まれ、比率を保ったまま枠へ配置される`, async ({ page }) => {
       await page.goto("/");
       const slot = page.locator(`[data-video-id="${id}"].video-embed--pc`);
 
@@ -21,11 +21,11 @@ test.describe("動画枠", () => {
       await slot.scrollIntoViewIfNeeded();
       await expect(slot).toHaveAttribute("data-url-configured", "true");
 
-      // 動画は16:9のまま、枠を埋めるように描画される
       const geo = await slot.evaluate((el) => {
         const box = el.getBoundingClientRect();
         const media = el.querySelector(".video-embed__media")!.getBoundingClientRect();
         return {
+          fit: el.getAttribute("data-video-fit"),
           boxW: box.width,
           boxH: box.height,
           mediaW: media.width,
@@ -34,14 +34,51 @@ test.describe("動画枠", () => {
         };
       });
 
+      // はみ出しは枠でクリップされ、レイアウトは動かない
       expect(geo.overflow).toBe("hidden");
-      // 16:9 を維持している
-      expect(Math.abs(geo.mediaW / geo.mediaH - 16 / 9)).toBeLessThan(0.02);
-      // 枠を隙間なく覆っている
-      expect(geo.mediaW).toBeGreaterThanOrEqual(geo.boxW - 1);
-      expect(geo.mediaH).toBeGreaterThanOrEqual(geo.boxH - 1);
+      expect(geo.mediaW).toBeGreaterThan(0);
+      expect(geo.mediaH).toBeGreaterThan(0);
+
+      if (geo.fit === "cover") {
+        // 枠と比率が近い場合は、隙間なく覆う
+        expect(geo.mediaW).toBeGreaterThanOrEqual(geo.boxW - 1);
+        expect(geo.mediaH).toBeGreaterThanOrEqual(geo.boxH - 1);
+      } else {
+        expect(geo.fit).toBe("contain");
+        // 比率が大きく違う場合は、切り取らず枠内へ収める
+        expect(geo.mediaW).toBeLessThanOrEqual(geo.boxW + 1);
+        expect(geo.mediaH).toBeLessThanOrEqual(geo.boxH + 1);
+        // 収まる範囲では最大化されている（どちらか一辺は枠に接する）
+        const touchesEdge =
+          Math.abs(geo.mediaW - geo.boxW) < 1 || Math.abs(geo.mediaH - geo.boxH) < 1;
+        expect(touchesEdge).toBe(true);
+      }
     });
   }
+
+  test("4枠ともYouTube Shorts（縦型9:16）として扱われる", async ({ page }) => {
+    await page.goto("/");
+    for (const { id } of VIDEO_SLOTS) {
+      const slot = page.locator(`[data-video-id="${id}"].video-embed--pc`);
+      await expect(slot).toHaveAttribute("data-video-kind", "youtube");
+    }
+
+    // 縦型のため、横長の枠では contain・縦長の枠では cover になる
+    const fits = await page.evaluate(() =>
+      Object.fromEntries(
+        Array.from(document.querySelectorAll(".video-embed--pc[data-video-id]")).map((el) => [
+          el.getAttribute("data-video-id"),
+          el.getAttribute("data-video-fit"),
+        ]),
+      ),
+    );
+    expect(fits).toEqual({
+      "video-company": "contain", // 951x194 の横長枠
+      "video-employee": "contain", // 870x354 の横長枠
+      "video-daily": "cover", // 341x615 の縦長枠（9:16とほぼ一致）
+      "video-president": "contain", // 774x378 の横長枠
+    });
+  });
 
   test("YouTube埋め込みは youtube-nocookie を使う", async ({ page }) => {
     await page.goto("/");
@@ -72,25 +109,40 @@ test.describe("動画枠", () => {
   });
 
   for (const { id } of VIDEO_SLOTS) {
-    test(`${id}: 全画面ボタンで16:9のまま全体が表示される`, async ({ page }) => {
+    test(`${id}: 全画面ボタンで本来の比率のまま全体が表示される`, async ({ page }) => {
       await page.goto("/");
-      const trigger = page.getByTestId(`video-expand-${id}-pc`);
-      await trigger.scrollIntoViewIfNeeded();
-      await trigger.click();
+
+      const inline = page.locator(`[data-video-id="${id}"].video-embed--pc`);
+      await inline.scrollIntoViewIfNeeded();
+      const inlineArea = await inline
+        .locator(".video-embed__media")
+        .evaluate((el) => el.getBoundingClientRect().width * el.getBoundingClientRect().height);
+
+      await page.getByTestId(`video-expand-${id}-pc`).click();
 
       const modal = page.getByTestId(`video-modal-${id}-pc`);
       await expect(modal).toBeVisible();
 
-      // 拡大表示では切り取られず、16:9のまま画面内に収まる
+      // 拡大表示では切り取られず、動画本来の比率のまま画面内に収まる
       const geo = await modal.locator(".video-modal__media").evaluate((el) => {
         const r = el.getBoundingClientRect();
-        return { w: r.width, h: r.height, vw: window.innerWidth, vh: window.innerHeight };
+        const declared = Number(
+          getComputedStyle(el.closest(".video-modal")!).getPropertyValue("--video-aspect"),
+        );
+        return {
+          w: r.width,
+          h: r.height,
+          declared,
+          vw: window.innerWidth,
+          vh: window.innerHeight,
+        };
       });
-      expect(Math.abs(geo.w / geo.h - 16 / 9)).toBeLessThan(0.02);
+      expect(Math.abs(geo.w / geo.h - geo.declared)).toBeLessThan(0.02);
       expect(geo.w).toBeLessThanOrEqual(geo.vw + 1);
       expect(geo.h).toBeLessThanOrEqual(geo.vh + 1);
-      // 枠内表示よりはるかに大きく見える
-      expect(geo.w).toBeGreaterThan(600);
+      // 枠内表示より大きく、画面のどちらかの辺をほぼ使い切る
+      expect(geo.w * geo.h).toBeGreaterThan(inlineArea);
+      expect(Math.max(geo.w / geo.vw, geo.h / geo.vh)).toBeGreaterThan(0.8);
 
       await page.getByTestId(`video-modal-close-${id}-pc`).click();
       await expect(modal).toBeHidden();
@@ -121,11 +173,19 @@ test.describe("動画枠", () => {
 
     const modal = page.getByTestId("video-modal-video-company-sp");
     await expect(modal).toBeVisible();
-    const aspect = await modal.locator(".video-modal__media").evaluate((el) => {
+    const geo = await modal.locator(".video-modal__media").evaluate((el) => {
       const r = el.getBoundingClientRect();
-      return r.width / r.height;
+      return {
+        aspect: r.width / r.height,
+        declared: Number(
+          getComputedStyle(el.closest(".video-modal")!).getPropertyValue("--video-aspect"),
+        ),
+        w: r.width,
+        vw: window.innerWidth,
+      };
     });
-    expect(Math.abs(aspect - 16 / 9)).toBeLessThan(0.02);
+    expect(Math.abs(geo.aspect - geo.declared)).toBeLessThan(0.02);
+    expect(geo.w).toBeLessThanOrEqual(geo.vw + 1);
   });
 
   test("4枠すべてに別々の動画が割り当てられている", async ({ page }) => {

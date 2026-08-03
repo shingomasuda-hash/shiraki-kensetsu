@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { coverSize, resolveVideoSource, type ResolvedVideo } from "@/lib/videoSource";
+import { fitSize, resolveVideoSource, type ResolvedVideo } from "@/lib/videoSource";
 import type { VideoPlacement } from "@/types/design";
 
 type VideoEmbedProps = {
@@ -77,7 +77,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
   const dialogRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const close = useCallback(() => setExpanded(false), []);
+  const close = () => setExpanded(false);
 
   useEffect(() => {
     if (!expanded) return;
@@ -87,7 +87,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        close();
+        setExpanded(false);
         triggerRef.current?.focus();
       }
     };
@@ -97,7 +97,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
       document.body.style.overflow = previous;
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [expanded, close]);
+  }, [expanded]);
 
   const boxStyle = {
     left: `${placement.left}%`,
@@ -129,7 +129,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
     );
   }
 
-  const inner = coverSize(placement.boxWidth, placement.boxHeight);
+  const inner = fitSize(placement.boxWidth, placement.boxHeight, resolved.aspect);
 
   /** ネイティブの全画面表示へ切り替える（対応していない環境では何もしない） */
   const requestNativeFullscreen = () => {
@@ -151,6 +151,7 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
         data-device={device}
         data-url-configured="true"
         data-video-kind={resolved.kind}
+        data-video-fit={inner.mode}
         style={boxStyle}
       >
         <VideoMedia
@@ -189,6 +190,8 @@ export function VideoEmbed({ id, label, url, placement, device, debug }: VideoEm
               aria-modal="true"
               aria-label={label}
               data-testid={`video-modal-${id}-${device}`}
+              // 拡大時はトリミングせず、動画本来の比率で表示する
+              style={{ "--video-aspect": resolved.aspect } as React.CSSProperties}
               onClick={(event) => {
                 if (event.target === event.currentTarget) close();
               }}
