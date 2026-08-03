@@ -21,6 +21,15 @@ import type { VideoSlot } from "@/types/design";
  * デザインの枠は「実際の現場一日紹介」のPC枠だけが縦長（341x615 ≒ 9:16）で、
  * 残りは横長のため、動画は枠内へ収めて表示される（トリミングなし）。
  */
+/**
+ * PCで、横長の枠に縦型動画が入る場合に使う動画の高さ。
+ * デザイン幅1024pxに対する割合で持つ（画面幅が変わっても比率が保たれる）。
+ *
+ * 値はデザイン内で唯一の縦長枠「実際の現場一日紹介」(341x615) の高さに合わせている。
+ * これにより4枠の動画の見え方が揃う。
+ */
+export const pcEnlargedVideoHeight = 615 / 1024;
+
 export const videoSlots: VideoSlot[] = [
   {
     id: "video-company",

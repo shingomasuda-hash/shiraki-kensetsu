@@ -84,30 +84,31 @@ img {
 }
 
 /*
- * SPで動画を等倍表示すると枠が画像の下端をはみ出すため、
- * その分の余白をセクション下部に作る。
- * 高さは画像の表示幅を基準にした割合（--tail-sp）で指定するので、
+ * 動画枠を広げると枠が画像の下端をはみ出すため、その分の余白をセクション下部に作る。
+ * 高さは画像の表示幅を基準にした割合（--tail-pc / --tail-sp）で指定するので、
  * 画面幅が変わっても動画の下端とぴったり一致する。
- * 色はセクション画像の下端の色（--tail-color）に合わせる。
+ *
+ * 割合指定のpaddingは「親要素の幅」を基準にするため、
+ * 画像と同じ幅（PC 1024px / SP 375px 上限）の親を挟んでから割合を効かせる。
  */
 .design-section__tail {
-  display: none;
+  display: block;
+  width: 100%;
+  max-width: 1024px;
+  margin: 0 auto;
+}
+
+.design-section__tail-inner {
+  width: 100%;
+  padding-bottom: var(--tail-pc, 0px);
 }
 
 @media (max-width: 767px) {
-  /*
-   * 割合指定のpaddingは「親要素の幅」を基準にするため、
-   * 画像と同じ幅(375px上限)の親を挟んでから割合を効かせる。
-   */
   .design-section__tail {
-    display: block;
-    width: 100%;
     max-width: 375px;
-    margin: 0 auto;
   }
 
   .design-section__tail-inner {
-    width: 100%;
     padding-bottom: var(--tail-sp, 0px);
   }
 }
@@ -132,7 +133,7 @@ img {
    */
   background-size: 100% var(--band-pc, 100%);
   background-position: top center;
-  background-color: var(--tail-color, transparent);
+  background-color: var(--tail-color-pc, transparent);
   filter: blur(36px);
   /* ぼかしで端が透けるのを防ぐため、横方向にだけ少し広げる */
   transform: scaleX(1.08);
@@ -142,6 +143,7 @@ img {
   .design-section::before {
     background-image: var(--bleed-sp);
     background-size: 100% var(--band-sp, 100%);
+    background-color: var(--tail-color-sp, transparent);
   }
 }
 
@@ -212,7 +214,7 @@ img {
   z-index: 15;
   overflow: hidden;
   line-height: 0;
-  background: #6f6767;
+  background: #696262;
 }
 
 .video-embed__media {
@@ -234,9 +236,14 @@ img {
   object-fit: contain;
 }
 
-/* 等倍表示（枠の高さを動画の比率から決めている）では、枠と動画が一致する */
-.video-embed[data-native-aspect="true"] {
-  background: #000000;
+/*
+ * 広げた枠は、デザインのグレー枠をそのまま縦に伸ばしたものとして見せる。
+ * 色と角丸はデザイン画像の枠から実測した値。
+ * 枠と動画がぴったり一致する場合（SP）は、この面は見えない。
+ */
+.video-embed[data-enlarged="true"] {
+  background: #696262;
+  border-radius: 6px;
 }
 
 @media (max-width: 767px) {

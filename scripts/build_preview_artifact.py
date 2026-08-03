@@ -152,16 +152,52 @@ def fit_in_box(box_w: int, box_h: int) -> dict:
     return {"mode": mode, "w": round(w, 3), "h": round(h, 3)}
 
 
-def sp_tail(section_id: str, img_w: int, img_h: int) -> float:
-    """SPで動画を等倍表示したとき、画像の下端をはみ出す量（画像表示幅を1とした割合）。"""
+# src/config/videos.ts の pcEnlargedVideoHeight と同じ
+PC_ENLARGED_VIDEO_HEIGHT = 615 / 1024
+
+
+def height_fraction(device: str, rect: dict) -> float | None:
+    """枠の高さ（デザイン幅に対する割合）。デザイン値のままなら None。"""
+    design_w = rect["boxWidth"] / (rect["width"] / 100)
+    design_h = rect["boxHeight"] / design_w
+
+    if device == "sp":
+        return rect["width"] / 100 / VIDEO_ASPECT
+
+    fits_already = fit_in_box(rect["boxWidth"], rect["boxHeight"])["mode"] == "cover"
+    if fits_already or PC_ENLARGED_VIDEO_HEIGHT <= design_h:
+        return None
+    return PC_ENLARGED_VIDEO_HEIGHT
+
+
+def section_tail(device: str, section_id: str, img_w: int, img_h: int) -> float:
+    """広げた枠が画像の下端をはみ出す量（画像表示幅を1とした割合）。"""
     tail = 0.0
-    for (_i, sid, _l, _pc, sp) in VIDEOS:
+    for (_i, sid, _l, pc, sp) in VIDEOS:
         if sid != section_id:
             continue
+        rect = pc if device == "pc" else sp
+        fraction = height_fraction(device, rect)
+        if fraction is None:
+            continue
         image_ratio = img_h / img_w
-        overflow = image_ratio * (sp["top"] / 100 - 1) + sp["width"] / 100 / VIDEO_ASPECT
-        tail = max(tail, overflow)
+        tail = max(tail, image_ratio * (rect["top"] / 100 - 1) + fraction)
     return round(max(0.0, tail), 5)
+
+
+def video_rect(device: str, rect: dict) -> dict:
+    """枠の描画情報。枠を広げる場合は、広げた後の寸法で収まり方を計算する。"""
+    fraction = height_fraction(device, rect)
+    if fraction is None:
+        return {**rect, "fit": fit_in_box(rect["boxWidth"], rect["boxHeight"])}
+
+    design_w = rect["boxWidth"] / (rect["width"] / 100)
+    box_h = fraction * design_w
+    return {
+        **rect,
+        "fit": fit_in_box(rect["boxWidth"], box_h),
+        "boxAspect": round(rect["width"] / 100 / fraction, 5),
+    }
 
 
 def data_uri(path: Path) -> str:
@@ -176,16 +212,19 @@ def main() -> None:
     for sid, fname, label in SECTIONS:
         pc = ROOT / "public" / "design" / "pc" / f"{fname}.webp"
         sp = ROOT / "public" / "design" / "sp" / f"{fname}.webp"
+        pc_w, pc_h = dims[sid]["pc"]["width"], dims[sid]["pc"]["height"]
         sp_w, sp_h = dims[sid]["sp"]["width"], dims[sid]["sp"]["height"]
         payload.append({
             "id": sid,
             "label": label,
-            "pc": {"src": data_uri(pc), "w": dims[sid]["pc"]["width"], "h": dims[sid]["pc"]["height"]},
+            "pc": {
+                "src": data_uri(pc), "w": pc_w, "h": pc_h,
+                "tail": section_tail("pc", sid, pc_w, pc_h),
+                "bottomColor": dims[sid]["pc"]["bottomColor"],
+            },
             "sp": {
-                "src": data_uri(sp),
-                "w": sp_w,
-                "h": sp_h,
-                "tail": sp_tail(sid, sp_w, sp_h),
+                "src": data_uri(sp), "w": sp_w, "h": sp_h,
+                "tail": section_tail("sp", sid, sp_w, sp_h),
                 "bottomColor": dims[sid]["sp"]["bottomColor"],
             },
         })
@@ -199,9 +238,8 @@ def main() -> None:
             "id": i,
             "section": s,
             "label": l,
-            "pc": {**pc, "fit": fit_in_box(pc["boxWidth"], pc["boxHeight"])},
-            # SPは動画本来の比率（等倍）で表示するため、枠の高さは比率から決まる
-            "sp": {**sp, "fit": {"mode": "native", "w": 100, "h": 100}, "native": True},
+            "pc": video_rect("pc", pc),
+            "sp": video_rect("sp", sp),
         }
         for (i, s, l, pc, sp) in VIDEOS
     ]
@@ -392,9 +430,11 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
     border: 0;
     padding: 0;
   }
-  .show-map .hot--internal { background: rgba(34,110,255,.30); outline: 2px solid #2266ff; }
-  .show-map .hot--external { background: rgba(255,138,0,.32); outline: 2px solid #ff8a00; }
-  .show-map .hot--video { background: rgba(150,60,255,.28); outline: 2px solid #963cff; }
+  body.show-map .hot--internal { background: rgba(34,110,255,.30); outline: 2px solid #2266ff; }
+  body.show-map .hot--external { background: rgba(255,138,0,.32); outline: 2px solid #ff8a00; }
+  /* 広げた枠は、デザインのグレー枠を縦に伸ばした面として見せる（実装と同じ） */
+  .hot--video[data-enlarged="true"] { background: #696262; border-radius: 6px; }
+  body.show-map .hot--video { background: rgba(150,60,255,.28); outline: 2px solid #963cff; }
   /* 実際に動画が映る範囲（縦型9:16を枠へ収めた結果） */
   .hot__fit {
     position: absolute;
@@ -603,28 +643,29 @@ function render() {
       const r = v[device];
       const box = document.createElement('span');
       box.className = 'hot hot--video';
+      if (r.boxAspect) box.dataset.enlarged = 'true';
       box.style.cssText = pct(r);
       const f = r.fit;
-      if (r.native) {
-        // SPは動画本来の比率で表示するため、高さは幅から決まる（枠は下へはみ出す）
+      if (r.boxAspect) {
+        // 枠を広げる場合、高さは幅と比率から決まる（枠は画像の下端をはみ出す）
         box.style.cssText =
-          `left:${r.left}%;top:${r.top}%;width:${r.width}%;height:auto;aspect-ratio:${VIDEO_ASPECT}`;
+          `left:${r.left}%;top:${r.top}%;width:${r.width}%;height:auto;aspect-ratio:${r.boxAspect}`;
       }
-      const note = r.native ? '等倍で再生' : (f.mode === 'cover' ? '枠を埋める' : '枠内へ収める');
+      const note = f.mode === 'cover' ? '枠いっぱいに再生' : '枠内へ収める（左右は余白）';
       box.innerHTML =
         `<span class="hot__fit" data-fit="${f.mode}" style="width:${f.w}%;height:${f.h}%"></span>` +
-        (r.native ? '' : `<span class="hot__expand" aria-hidden="true">⤢</span>`) +
+        (f.mode === 'contain' ? `<span class="hot__expand" aria-hidden="true">⤢</span>` : '') +
         `<span class="hot__tag">${v.id}<br>${v.label}<br>${note}</span>`;
       el.appendChild(box);
     }
 
-    // SPで動画がはみ出す分だけ、セクションの下に余白を足す。
+    // 動画枠を広げた分だけ、セクションの下に余白を足す。
     // 画像の上に重ねた要素の座標は画像の高さを基準にしているため、
     // 余白は .sec の中ではなく外（画像と同じ幅の .frame の中）へ置く。
-    const tail = device === 'sp' ? (sec.sp.tail || 0) : 0;
+    const tail = d.tail || 0;
     let tailEl = null;
     if (tail > 0) {
-      band.style.background = sec.sp.bottomColor;
+      band.style.background = d.bottomColor;
       tailEl = document.createElement('div');
       tailEl.className = 'tail';
       tailEl.style.paddingBottom = (tail * 100).toFixed(4) + '%';

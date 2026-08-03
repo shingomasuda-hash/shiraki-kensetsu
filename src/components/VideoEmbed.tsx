@@ -13,11 +13,11 @@ type VideoEmbedProps = {
   device: "pc" | "sp";
   debug: boolean;
   /**
-   * 枠の高さをデザイン値ではなく動画本来の比率から決める。
-   * 動画は等倍（トリミングも縮小もなし）で表示され、
-   * 枠からはみ出した分はセクション下部の余白が受け止める。
+   * 枠の高さをデザイン値ではなく、この値（デザイン幅に対する割合）で決める。
+   * 動画を大きく見せるために枠を広げる用途で、枠からはみ出した分は
+   * セクション下部の余白が受け止める。未指定ならデザイン値のまま。
    */
-  nativeAspect?: boolean;
+  heightFraction?: number;
 };
 
 const subscribeNoop = () => () => {};
@@ -83,7 +83,7 @@ export function VideoEmbed({
   placement,
   device,
   debug,
-  nativeAspect = false,
+  heightFraction,
 }: VideoEmbedProps) {
   const resolved = resolveVideoSource(url);
   const [expanded, setExpanded] = useState(false);
@@ -143,19 +143,20 @@ export function VideoEmbed({
     );
   }
 
-  // 等倍表示のときは、枠の高さを動画の比率から決めるので拡大も縮小も起きない。
-  const inner = nativeAspect
-    ? ({ mode: "cover", width: "100%", height: "100%" } as const)
-    : fitSize(placement.boxWidth, placement.boxHeight, resolved.aspect);
+  // 枠を広げる場合は、デザイン幅から実寸を割り出して比率を計算し直す。
+  // （デザイン幅 = 枠の実寸 ÷ 枠の幅の割合）
+  const designWidth = placement.boxWidth / (placement.width / 100);
+  const boxHeight = heightFraction ? heightFraction * designWidth : placement.boxHeight;
+  const inner = fitSize(placement.boxWidth, boxHeight, resolved.aspect);
 
-  if (nativeAspect) {
+  if (heightFraction) {
     boxStyle.height = "auto";
-    boxStyle.aspectRatio = String(resolved.aspect);
+    boxStyle.aspectRatio = String(placement.width / 100 / heightFraction);
   }
 
-  // 枠内で等倍に見えているものは、拡大表示するものが残っていない。
+  // 枠に対して動画がぴったり収まっている場合は、拡大表示するものが残っていない。
   // プレーヤー自身の全画面ボタンと二重にならないよう、拡大ボタンを出さない。
-  const canExpand = !nativeAspect && inner.mode === "contain";
+  const canExpand = inner.mode === "contain";
 
   /** ネイティブの全画面表示へ切り替える（対応していない環境では何もしない） */
   const requestNativeFullscreen = () => {
@@ -178,7 +179,7 @@ export function VideoEmbed({
         data-url-configured="true"
         data-video-kind={resolved.kind}
         data-video-fit={inner.mode}
-        data-native-aspect={nativeAspect ? "true" : "false"}
+        data-enlarged={heightFraction ? "true" : "false"}
         style={boxStyle}
       >
         {/*

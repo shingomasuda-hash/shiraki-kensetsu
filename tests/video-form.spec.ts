@@ -244,6 +244,55 @@ test.describe("動画枠", () => {
     });
   });
 
+  test.describe("PCの動画は枠を広げて大きく表示される", () => {
+    for (const { id } of VIDEO_SLOTS) {
+      test(`${id}: 動画がデザイン枠より大きく、下のセクションに重ならない`, async ({ page }) => {
+        await page.goto("/");
+        const slot = page.locator(`[data-video-id="${id}"].video-embed--pc`);
+        await slot.scrollIntoViewIfNeeded();
+
+        const geo = await slot.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const media = el.querySelector(".video-embed__media")!.getBoundingClientRect();
+          const section = el.closest(".design-section")!.getBoundingClientRect();
+          return {
+            enlarged: el.getAttribute("data-enlarged"),
+            boxW: r.width,
+            boxH: r.height,
+            mediaW: media.width,
+            mediaH: media.height,
+            bottomGap: r.bottom - section.bottom,
+          };
+        });
+
+        // 4枠とも、デザイン内の縦長枠と同じ高さ（615px相当）まで大きくする
+        expect(geo.mediaH).toBeGreaterThan(600);
+        expect(Math.abs(geo.mediaW / geo.mediaH - 9 / 16)).toBeLessThan(0.005);
+        if (geo.enlarged === "true") {
+          // 広げた枠では、動画は切り取られず枠内に収まる
+          expect(geo.mediaW).toBeLessThanOrEqual(geo.boxW + 1);
+          expect(geo.mediaH).toBeLessThanOrEqual(geo.boxH + 1);
+          // 下端がセクション下端と一致して、次のセクションへ重ならない
+          expect(Math.abs(geo.bottomGap)).toBeLessThan(2);
+        } else {
+          // デザインのまま使う縦長枠は、枠を隙間なく覆う（はみ出しは枠でクリップ）
+          expect(geo.mediaW).toBeGreaterThanOrEqual(geo.boxW - 1);
+          expect(geo.mediaH).toBeGreaterThanOrEqual(geo.boxH - 1);
+          expect(geo.bottomGap).toBeLessThanOrEqual(1);
+        }
+      });
+    }
+
+    test("枠を広げても横スクロールは発生しない", async ({ page }) => {
+      await page.goto("/");
+      const { scrollW, clientW } = await page.evaluate(() => ({
+        scrollW: document.documentElement.scrollWidth,
+        clientW: document.documentElement.clientWidth,
+      }));
+      expect(scrollW).toBeLessThanOrEqual(clientW);
+    });
+  });
+
   test("4枠すべてに別々の動画が割り当てられている", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto("/");
