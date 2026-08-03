@@ -362,8 +362,12 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
   .band { position: relative; overflow: hidden; }
 
   .sec { position: relative; line-height: 0; font-size: 0; }
-  .sec > img { position: relative; z-index: 1; }
-  .sec img { display: block; width: 100%; height: auto; position: relative; z-index: 1; }
+  /*
+   * 画像に z-index を持たせると、後ろに並ぶ重ね要素（クリック領域・動画枠・
+   * 入力欄）より前面に来てしまう。ぼかし背景(::before)は z-index:0 なので、
+   * 画像は position だけ指定してDOM順で上に載せる。
+   */
+  .sec img { display: block; width: 100%; height: auto; position: relative; }
   /* 余白側は、そのセクション画像をぼかしたものを敷いて埋める（本体は拡大しない） */
   .sec::before {
     content: "";
