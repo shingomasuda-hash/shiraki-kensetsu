@@ -87,7 +87,7 @@ export type VideoSlot = {
   sp: VideoPlacement;
 };
 
-export type FormFieldName = "name" | "kana" | "tel" | "email" | "message" | "birthday";
+export type FormFieldName = "name" | "kana" | "tel" | "email" | "message";
 
 export type FormFieldDefinition = {
   name: FormFieldName;
@@ -96,8 +96,6 @@ export type FormFieldDefinition = {
   inputType: "text" | "tel" | "email";
   multiline?: boolean;
   autoComplete?: string;
-  /** スマホのキーボードを切り替える（生年月日などの数字入力用） */
-  inputMode?: "numeric";
   required: boolean;
   pc: RelativeRect;
   sp: RelativeRect;

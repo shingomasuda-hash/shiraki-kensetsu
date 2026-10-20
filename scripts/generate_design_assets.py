@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 try:
-    from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageStat
+    from PIL import Image, ImageStat
 except ImportError:
     print("Pillow がインストールされていません。")
     print("  pip install pillow")
@@ -100,144 +100,6 @@ class SectionResult:
     bottom_color: str
 
 
-# ---------------------------------------------------------------------------
-# お問い合わせフォームへの「生年月日」欄の差し込み
-#
-# デザイン画像にはこの欄が無く、メッセージ欄と送信ボタンの間に空きも無いため、
-# セクション画像を分割して1行ぶんの帯を差し込み、その上へ
-# ラベル・必須バッジ・入力欄をデザインと同じ体裁で描く。
-#
-# 座標は1倍(PC 1024px / SP 375px)基準。実データの解像度に合わせて自動換算する。
-# 元データ（トレース画像）に生年月日欄が追加されたら、この差し込みは不要になる。
-# ---------------------------------------------------------------------------
-FONT_DIR = ROOT / "scripts" / "fonts"
-BIRTHDAY_LABEL = "生年月日"
-BIRTHDAY_BADGE = "必須"
-BIRTHDAY_PLACEHOLDER = "例：1998年4月1日"
-
-BIRTHDAY_ROW = {
-    "pc": dict(
-        # 分割位置（メッセージ欄の下端のすぐ下）と、差し込む帯の高さ
-        split=452.5, band=88.0,
-        # 帯を埋める写真として使う「UIの無い行」の範囲
-        clean=(451.0, 461.5),
-        # 入力欄（他の欄と同じ左カラム幅）
-        box_x=(205.0, 501.5), box_top=50.5, box_h=36.5, radius=6.5,
-        # ラベル行
-        label_cy=25.0, label_size=16.0,
-        badge_w=31.0, badge_h=22.5, badge_size=11.5, badge_radius=5.0,
-        placeholder_size=15.5, placeholder_x=220.5,
-    ),
-    "sp": dict(
-        split=536.5, band=69.0,
-        clean=(535.0, 548.0),
-        box_x=(20.0, 354.5), box_top=33.5, box_h=35.0, radius=3.5,
-        label_cy=18.0, label_size=13.5,
-        badge_w=26.0, badge_h=19.0, badge_size=9.5, badge_radius=4.0,
-        placeholder_size=15.0, placeholder_x=30.0,
-    ),
-}
-
-LABEL_COLOR = (255, 255, 255)
-BADGE_COLOR = (22, 171, 64)
-BOX_COLOR = (255, 255, 255)
-PLACEHOLDER_COLOR = (150, 150, 150)
-
-
-def _font(weight: int, size: float) -> ImageFont.FreeTypeFont:
-    path = FONT_DIR / f"NotoSansJP-{weight}.subset.ttf"
-    if not path.exists():
-        log(f"ERROR: フォントが見つかりません: {path}")
-        sys.exit(1)
-    return ImageFont.truetype(str(path), max(1, round(size)))
-
-
-def _photo_band(image: Image.Image, split: int, band: int, clean: tuple[int, int]) -> Image.Image:
-    """差し込む帯の背景を作る。
-
-    分割位置の近くにある「UIが写っていない写真だけの行」を縦に引き伸ばし、
-    ぼかして写真の続きに見せる。さらに上下の端を元画像の行へなじませ、
-    継ぎ目に線が出ないようにする。
-    """
-    width = image.width
-    strip = image.crop((0, clean[0], width, clean[1]))
-    fill = strip.resize((width, band), Image.BICUBIC).filter(ImageFilter.GaussianBlur(band // 25 + 4))
-
-    fade = max(6, band // 6)
-    for src_y, from_top in ((split - 1, True), (split, False)):
-        row = image.crop((0, src_y, width, src_y + 1)).resize((width, band), Image.NEAREST)
-        mask = Image.new("L", (width, band), 0)
-        draw = ImageDraw.Draw(mask)
-        for i in range(fade):
-            y = i if from_top else band - 1 - i
-            draw.line([(0, y), (width, y)], fill=int(255 * (1 - i / fade)))
-        fill = Image.composite(row, fill, mask)
-
-    return fill
-
-
-def insert_birthday_field(image: Image.Image, device: str) -> tuple[Image.Image, dict]:
-    """お問い合わせセクションへ生年月日欄を差し込み、その入力欄の矩形(%)を返す。"""
-    scale = image.width / (REF_PC_SIZE[0] if device == "pc" else REF_SP_SIZE[0])
-    cfg = BIRTHDAY_ROW[device]
-    px = lambda key: round(cfg[key] * scale)
-
-    split, band = px("split"), px("band")
-    clean = (round(cfg["clean"][0] * scale), round(cfg["clean"][1] * scale))
-    width, height = image.width, image.height
-
-    out = Image.new("RGB", (width, height + band))
-    out.paste(image.crop((0, 0, width, split)), (0, 0))
-    out.paste(_photo_band(image, split, band, clean), (0, split))
-    out.paste(image.crop((0, split, width, height)), (0, split + band))
-
-    box_x0, box_x1 = round(cfg["box_x"][0] * scale), round(cfg["box_x"][1] * scale)
-    box_y0 = split + px("box_top")
-    box_y1 = box_y0 + px("box_h")
-    radius = max(1, px("radius"))
-
-    # 他の入力欄と同じく、わずかな影を落とす
-    shadow = Image.new("RGBA", out.size, (0, 0, 0, 0))
-    ImageDraw.Draw(shadow).rounded_rectangle(
-        [box_x0, box_y0 + round(3 * scale), box_x1, box_y1 + round(4 * scale)],
-        radius=radius, fill=(0, 0, 0, 38),
-    )
-    out = Image.alpha_composite(
-        out.convert("RGBA"), shadow.filter(ImageFilter.GaussianBlur(round(3.5 * scale)))
-    ).convert("RGB")
-
-    draw = ImageDraw.Draw(out)
-    draw.rounded_rectangle([box_x0, box_y0, box_x1, box_y1], radius=radius, fill=BOX_COLOR)
-    draw.text(
-        (round(cfg["placeholder_x"] * scale), (box_y0 + box_y1) // 2),
-        BIRTHDAY_PLACEHOLDER, font=_font(400, cfg["placeholder_size"] * scale),
-        fill=PLACEHOLDER_COLOR, anchor="lm",
-    )
-
-    label_font = _font(700, cfg["label_size"] * scale)
-    label_cy = split + px("label_cy")
-    draw.text((box_x0 + round(2 * scale), label_cy), BIRTHDAY_LABEL,
-              font=label_font, fill=LABEL_COLOR, anchor="lm")
-
-    badge_x0 = box_x0 + round(2 * scale) + round(draw.textlength(BIRTHDAY_LABEL, font=label_font)) + round(6.5 * scale)
-    badge_h, badge_w = px("badge_h"), px("badge_w")
-    draw.rounded_rectangle(
-        [badge_x0, label_cy - badge_h // 2, badge_x0 + badge_w, label_cy + badge_h // 2],
-        radius=max(1, px("badge_radius")), fill=BADGE_COLOR,
-    )
-    draw.text((badge_x0 + badge_w // 2, label_cy + round(0.5 * scale)), BIRTHDAY_BADGE,
-              font=_font(700, cfg["badge_size"] * scale), fill=LABEL_COLOR, anchor="mm")
-
-    rect = {
-        "left": round(box_x0 / width * 100, 3),
-        "top": round(box_y0 / out.height * 100, 3),
-        "width": round((box_x1 - box_x0 + 1) / width * 100, 3),
-        "height": round((box_y1 - box_y0 + 1) / out.height * 100, 3),
-    }
-    log(f"{device.upper()} お問い合わせ: 生年月日欄を差し込みました（+{band}px）")
-    return out, rect
-
-
 def bottom_edge_color(image: Image.Image) -> str:
     """画像の最下部の代表色を取り、`#rrggbb` で返す。
 
@@ -313,10 +175,6 @@ def check_sources() -> tuple[Image.Image, Image.Image, list[int], list[int]]:
     return pc, sp, pc_bounds, sp_bounds
 
 
-# 差し込んだ生年月日入力欄の矩形(%)。デバイスごとに1件ずつ入る。
-birthday_rects: dict[str, dict] = {}
-
-
 def generate_device(
     device: str,
     image: Image.Image,
@@ -333,10 +191,6 @@ def generate_device(
         top = boundaries[i]
         bottom = boundaries[i + 1]
         crop = image.crop((0, top, image.width, bottom))
-
-        # デザインに無い「生年月日」欄をここで差し込む（詳細は上の定数を参照）
-        if section["id"] == "contact":
-            crop, birthday_rects[device] = insert_birthday_field(crop, device)
 
         png_path = tmp_device_dir / f"{section['file']}.png"
         webp_path = out_dir / f"{section['file']}.webp"
@@ -439,25 +293,6 @@ def write_manifest(all_results: list[SectionResult]) -> None:
         "  height: number;",
         "  /** 画像下端の代表色。動画枠を下へ伸ばした余白を埋めるのに使う。 */",
         "  bottomColor: string;",
-        "};",
-        "",
-        "/** 画像生成時に差し込んだ入力欄の矩形（セクション画像に対する%） */",
-        "export type GeneratedRect = {",
-        "  left: number;",
-        "  top: number;",
-        "  width: number;",
-        "  height: number;",
-        "};",
-        "",
-        "/**",
-        " * お問い合わせフォームへ差し込んだ生年月日欄の座標。",
-        " * デザイン画像を分割して描き込んでいるため、ここは自動生成で管理する。",
-        " */",
-        "export const generatedBirthdayRect: { pc: GeneratedRect; sp: GeneratedRect } = {",
-    ] + [
-        f'  {dev}: {{ left: {r["left"]}, top: {r["top"]}, width: {r["width"]}, height: {r["height"]} }},'
-        for dev, r in sorted(birthday_rects.items())
-    ] + [
         "};",
         "",
         "export type GeneratedSectionImages = {",

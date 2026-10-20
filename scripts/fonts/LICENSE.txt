@@ -1,8 +1,0 @@
-Noto Sans JP
-Copyright 2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'.
-Licensed under the SIL Open Font License, Version 1.1.
-https://openfontlicense.org
-
-このディレクトリの .ttf は、お問い合わせフォームの「生年月日」欄をデザイン画像へ
-描き込むために使用しています（scripts/generate_design_assets.py）。
-必要な文字（生年月日必須例：0-9）だけを含むサブセットです。
