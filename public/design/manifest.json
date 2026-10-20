@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-03T09:10:08+0000",
+  "generatedAt": "2026-10-20T08:50:25+0000",
   "sections": [
     {
       "id": "hero",
@@ -193,16 +193,16 @@
       "pc": {
         "file": "/design/pc/12-contact.webp",
         "width": 2048,
-        "height": 1076,
-        "bytes": 296970,
+        "height": 1252,
+        "bytes": 314176,
         "bottomColor": "#2d684e"
       },
       "sp": {
         "file": "/design/sp/12-contact.webp",
         "width": 750,
-        "height": 1322,
-        "bytes": 169190,
-        "bottomColor": "#417c58"
+        "height": 1460,
+        "bytes": 176448,
+        "bottomColor": "#417d58"
       }
     },
     {

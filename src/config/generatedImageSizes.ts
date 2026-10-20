@@ -9,6 +9,23 @@ export type GeneratedImageInfo = {
   bottomColor: string;
 };
 
+/** 画像生成時に差し込んだ入力欄の矩形（セクション画像に対する%） */
+export type GeneratedRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * お問い合わせフォームへ差し込んだ生年月日欄の座標。
+ * デザイン画像を分割して描き込んでいるため、ここは自動生成で管理する。
+ */
+export const generatedBirthdayRect: { pc: GeneratedRect; sp: GeneratedRect } = {
+  pc: { left: 20.02, top: 80.351, width: 29.004, height: 5.911 },
+  sp: { left: 5.333, top: 78.082, width: 89.333, height: 4.863 },
+};
+
 export type GeneratedSectionImages = {
   id: string;
   pc: GeneratedImageInfo;
@@ -186,14 +203,14 @@ export const generatedImageSizes: GeneratedSectionImages[] = [
     pc: {
       file: "/design/pc/12-contact.webp",
       width: 2048,
-      height: 1076,
+      height: 1252,
       bottomColor: "#2d684e",
     },
     sp: {
       file: "/design/sp/12-contact.webp",
       width: 750,
-      height: 1322,
-      bottomColor: "#417c58",
+      height: 1460,
+      bottomColor: "#417d58",
     },
   },
   {

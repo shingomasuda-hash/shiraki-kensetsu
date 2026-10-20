@@ -400,6 +400,16 @@ img {
   display: contents;
 }
 
+/* 自動投稿よけの欄。画面からも読み上げからも外す。 */
+.contact-form__honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .contact-form__input {
   position: absolute;
   margin: 0;

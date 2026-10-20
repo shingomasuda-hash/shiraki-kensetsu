@@ -99,26 +99,30 @@ VIDEOS = [
 ]
 
 # src/config/contactForm.ts と同じ値
+# （生年月日欄は generate_design_assets.py がデザイン画像へ差し込んだもの）
 FORM_FIELDS = [
     ("name", "名前", "text", False, "例：山田 太郎",
-     dict(left=20.02, top=32.714, width=29.004, height=6.877),
-     dict(left=5.333, top=22.844, width=89.333, height=5.295)),
+     dict(left=20.020, top=28.115, width=29.004, height=5.911),
+     dict(left=5.333, top=20.685, width=89.333, height=4.863)),
     ("kana", "フリガナ", "text", False, "例：ヤマダ　タロウ",
-     dict(left=50.879, top=32.714, width=28.711, height=6.877),
-     dict(left=5.333, top=33.585, width=89.333, height=5.295)),
+     dict(left=50.879, top=28.115, width=28.711, height=5.911),
+     dict(left=5.333, top=30.411, width=89.333, height=4.863)),
     ("tel", "電話番号", "tel", False, "例：090-1234-5678",
-     dict(left=20.02, top=49.071, width=29.004, height=6.691),
-     dict(left=5.333, top=44.327, width=89.333, height=5.295)),
+     dict(left=20.410, top=42.013, width=28.613, height=6.070),
+     dict(left=5.333, top=40.137, width=89.333, height=4.863)),
     ("email", "メールアドレス", "email", False, "例：example@shiraki-const.jp",
-     dict(left=50.879, top=49.071, width=29.004, height=6.691),
-     dict(left=5.333, top=55.068, width=89.333, height=5.295)),
+     dict(left=50.879, top=42.013, width=29.004, height=6.070),
+     dict(left=5.333, top=49.863, width=89.333, height=4.863)),
     ("message", "メッセージ", "text", True, "気になることをご自由にお書きください",
-     dict(left=20.02, top=63.755, width=59.961, height=19.888),
-     dict(left=5.333, top=65.809, width=89.333, height=14.977)),
+     dict(left=20.020, top=54.792, width=59.961, height=17.093),
+     dict(left=5.333, top=59.589, width=89.333, height=13.630)),
+    ("birthday", "生年月日", "text", False, "例：1998年4月1日",
+     dict(left=20.020, top=80.351, width=29.004, height=5.911),
+     dict(left=5.333, top=78.082, width=89.333, height=4.863)),
 ]
 SUBMIT_RECT = (
-    dict(left=38.574, top=85.688, width=23.145, height=7.807),
-    dict(left=26.133, top=83.056, width=47.733, height=6.051),
+    dict(left=38.574, top=87.859, width=23.145, height=6.390),
+    dict(left=26.000, top=84.658, width=47.867, height=5.548),
 )
 
 # src/config/mobileNav.ts と同じ値

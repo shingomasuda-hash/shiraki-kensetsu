@@ -173,7 +173,7 @@ export function ResponsiveDesignSection({ section, debug }: ResponsiveDesignSect
       })}
 
       {section.id === "contact" ? (
-        <ContactFormOverlay endpoint={siteLinks.contactEndpoint} debug={debug} />
+        <ContactFormOverlay enabled={siteLinks.contactFormEnabled} debug={debug} />
       ) : null}
 
       {section.id === "hero" ? <MobileNav /> : null}

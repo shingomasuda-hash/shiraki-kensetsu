@@ -307,7 +307,7 @@ test.describe("動画枠", () => {
 });
 
 test.describe("お問い合わせフォーム", () => {
-  const endpointConfigured = Boolean(process.env.NEXT_PUBLIC_CONTACT_ENDPOINT?.trim());
+  const endpointConfigured = Boolean(process.env.CONTACT_FORWARD_URL?.trim());
 
   test("PCで全入力欄に実際に入力できる", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
@@ -319,10 +319,12 @@ test.describe("お問い合わせフォーム", () => {
     await page.fill("#contact-tel-pc", "090-1234-5678");
     await page.fill("#contact-email-pc", "taro@example.com");
     await page.fill("#contact-message-pc", "話を聞いてみたいです");
+    await page.fill("#contact-birthday-pc", "1998年4月1日");
 
     await expect(page.locator("#contact-name-pc")).toHaveValue("山田 太郎");
     await expect(page.locator("#contact-email-pc")).toHaveValue("taro@example.com");
     await expect(page.locator("#contact-message-pc")).toHaveValue("話を聞いてみたいです");
+    await expect(page.locator("#contact-birthday-pc")).toHaveValue("1998年4月1日");
   });
 
   test("SPで全入力欄に実際に入力できる", async ({ page }) => {
@@ -332,8 +334,10 @@ test.describe("お問い合わせフォーム", () => {
 
     await page.fill("#contact-name-sp", "鈴木 花子");
     await page.fill("#contact-tel-sp", "080-0000-0000");
+    await page.fill("#contact-birthday-sp", "2000/1/9");
     await expect(page.locator("#contact-name-sp")).toHaveValue("鈴木 花子");
     await expect(page.locator("#contact-tel-sp")).toHaveValue("080-0000-0000");
+    await expect(page.locator("#contact-birthday-sp")).toHaveValue("2000/1/9");
   });
 
   test("入力欄はデザイン画像の枠内に収まっている（PC）", async ({ page }) => {
@@ -342,7 +346,7 @@ test.describe("お問い合わせフォーム", () => {
     await page.locator("#contact").scrollIntoViewIfNeeded();
 
     const section = await page.locator("#contact").boundingBox();
-    for (const field of ["name", "kana", "tel", "email", "message"]) {
+    for (const field of ["name", "kana", "tel", "email", "message", "birthday"]) {
       const box = await page.locator(`#contact-${field}-pc`).boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(section!.x - 1);
@@ -366,6 +370,56 @@ test.describe("お問い合わせフォーム", () => {
     }
   });
 
+  test("生年月日欄はメッセージ欄と送信ボタンの間にある（PC/SP）", async ({ page }) => {
+    for (const [device, width] of [
+      ["pc", 1366],
+      ["sp", 390],
+    ] as const) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto("/");
+      await page.locator("#contact").scrollIntoViewIfNeeded();
+
+      const geo = await page.evaluate((dev) => {
+        const rect = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+        return {
+          message: rect(`#contact-message-${dev}`).bottom,
+          birthdayTop: rect(`#contact-birthday-${dev}`).top,
+          birthdayBottom: rect(`#contact-birthday-${dev}`).bottom,
+          submit: rect(`.contact-form__submit--${dev}`).top,
+        };
+      }, device);
+
+      expect(geo.birthdayTop).toBeGreaterThan(geo.message);
+      expect(geo.birthdayBottom).toBeLessThan(geo.submit);
+    }
+  });
+
+  test("生年月日は必須で、数字キーボードが開く", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    const input = page.locator("#contact-birthday-pc");
+    await expect(input).toHaveAttribute("required", "");
+    await expect(input).toHaveAttribute("inputmode", "numeric");
+    await expect(input).toHaveAttribute("aria-label", "生年月日");
+  });
+
+  test("自動投稿よけの欄は画面に出ない", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    const honeypot = page.locator(".contact-form__honeypot");
+    await expect(honeypot).toHaveCount(1);
+    await expect(honeypot).toHaveAttribute("aria-hidden", "true");
+    await expect(honeypot).toHaveAttribute("tabindex", "-1");
+
+    // 画面外へ飛ばして見えなくしている（display:none にすると埋めない相手もいるため）
+    const geo = await honeypot.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { right: r.right, opacity: Number(getComputedStyle(el).opacity) };
+    });
+    expect(geo.right).toBeLessThan(0);
+    expect(geo.opacity).toBe(0);
+  });
+
   test("フォームはPC/SPどちらか一方の入力欄だけが表示される", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto("/");
@@ -385,5 +439,64 @@ test.describe("お問い合わせフォーム", () => {
         ).length,
     );
     expect(visiblePc).toBe(0);
+  });
+});
+
+test.describe("お問い合わせの受け口（/api/contact）", () => {
+  const forwardConfigured = Boolean(process.env.CONTACT_FORWARD_URL?.trim());
+
+  const validBody = {
+    name: "山田 太郎",
+    kana: "ヤマダ タロウ",
+    birthday: "1998年4月1日",
+    tel: "090-1234-5678",
+    email: "taro@example.com",
+    message: "話を聞いてみたいです",
+  };
+
+  test("必須項目が欠けていると受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, birthday: "" },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body.error).toBe("invalid_input");
+    expect(body.invalid).toContain("生年月日");
+  });
+
+  test("メールアドレスの形式を検査する", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, email: "not-an-email" },
+    });
+    expect(response.status()).toBe(400);
+    expect((await response.json()).invalid).toContain("メールアドレスの形式");
+  });
+
+  test("本文がJSONでなければ受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      headers: { "Content-Type": "application/json" },
+      data: "not json",
+    });
+    expect(response.status()).toBe(400);
+  });
+
+  test("自動投稿よけの欄が埋まっていても、内部的には記録しない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, company: "spam" },
+    });
+    // 送信者には成功に見せたうえで、中継はしない
+    expect(response.status()).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+  });
+
+  test(`中継先${forwardConfigured ? "設定済み" : "未設定"}のときの応答`, async ({ request }) => {
+    const response = await request.post("/api/contact", { data: validBody });
+
+    if (forwardConfigured) {
+      expect([200, 502]).toContain(response.status());
+    } else {
+      expect(response.status()).toBe(503);
+      expect((await response.json()).error).toBe("not_configured");
+    }
   });
 });
