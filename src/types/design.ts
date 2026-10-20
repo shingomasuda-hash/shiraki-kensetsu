@@ -87,15 +87,31 @@ export type VideoSlot = {
   sp: VideoPlacement;
 };
 
-export type FormFieldName = "name" | "kana" | "tel" | "email" | "message";
+export type FormFieldName =
+  | "name"
+  | "kana"
+  | "tel"
+  | "email"
+  | "message"
+  | "birthday"
+  | "gender";
 
 export type FormFieldDefinition = {
   name: FormFieldName;
   label: string;
-  /** input の type。textarea の場合は multiline を true にする */
-  inputType: "text" | "tel" | "email";
+  /**
+   * input の type。
+   * textarea にする場合は multiline、<select> にする場合は "select" を指定する。
+   */
+  inputType: "text" | "tel" | "email" | "select";
   multiline?: boolean;
+  /** inputType が "select" のときの選択肢。先頭は未選択時の表示に使う。 */
+  options?: string[];
   autoComplete?: string;
+  /** スマホのキーボードを切り替える（生年月日などの数字入力用） */
+  inputMode?: "numeric";
+  /** 受け口（/api/contact）で弾く文字数の上限 */
+  maxLength: number;
   required: boolean;
   pc: RelativeRect;
   sp: RelativeRect;

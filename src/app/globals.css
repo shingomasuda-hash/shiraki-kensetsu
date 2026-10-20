@@ -400,6 +400,31 @@ img {
   display: contents;
 }
 
+/*
+ * 性別などの選択欄。デザイン画像の「選択してください」を見せたいので、
+ * ブラウザ既定の枠・矢印・背景を消して透明にする。
+ */
+.contact-form__input--select {
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+/* 未選択のうちはデザイン画像の文字を見せ、選ぶと実際の値を表示する */
+.contact-form__input--select:invalid {
+  color: transparent;
+}
+
+/* 自動投稿よけの欄。画面からも読み上げからも外す。 */
+.contact-form__honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .contact-form__input {
   position: absolute;
   margin: 0;

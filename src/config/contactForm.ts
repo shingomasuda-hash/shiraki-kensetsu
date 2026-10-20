@@ -9,6 +9,7 @@ import type { FormFieldDefinition, RelativeRect } from "@/types/design";
 export const contactFormFields: FormFieldDefinition[] = [
   {
     name: "name",
+    maxLength: 100,
     label: "名前",
     inputType: "text",
     autoComplete: "name",
@@ -18,6 +19,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "kana",
+    maxLength: 100,
     label: "フリガナ",
     inputType: "text",
     required: true,
@@ -26,6 +28,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "tel",
+    maxLength: 40,
     label: "電話番号",
     inputType: "tel",
     autoComplete: "tel",
@@ -35,6 +38,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "email",
+    maxLength: 254,
     label: "メールアドレス",
     inputType: "email",
     autoComplete: "email",
@@ -44,6 +48,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "message",
+    maxLength: 5000,
     label: "メッセージ",
     inputType: "text",
     multiline: true,

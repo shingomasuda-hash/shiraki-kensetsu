@@ -5,9 +5,13 @@ import { contactFormFields, contactSubmitRect } from "@/config/contactForm";
 import type { FormFieldName } from "@/types/design";
 
 type ContactFormOverlayProps = {
-  endpoint: string | null;
+  /** 送信先（Apps Script）が設定済みか。未設定なら送信ボタンを無効化する。 */
+  enabled: boolean;
   debug: boolean;
 };
+
+/** ブラウザからの送信先。ここから Apps Script へ中継する（同一オリジンなのでCORSなし）。 */
+const ENDPOINT = "/api/contact";
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -17,6 +21,8 @@ const emptyValues: Record<FormFieldName, string> = {
   tel: "",
   email: "",
   message: "",
+  birthday: "",
+  gender: "",
 };
 
 /**
@@ -26,26 +32,28 @@ const emptyValues: Record<FormFieldName, string> = {
  * 送信先(endpoint)が未設定の場合は送信ボタンを無効化し、
  * 誤送信やダミー送信が起きないようにする。
  */
-export function ContactFormOverlay({ endpoint, debug }: ContactFormOverlayProps) {
+export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) {
   const [values, setValues] = useState(emptyValues);
   const [status, setStatus] = useState<Status>("idle");
+  // 人には見えない欄。自動投稿プログラムだけが埋めるので、入っていたら弾く。
+  const [company, setCompany] = useState("");
 
-  const configured = Boolean(endpoint);
+  const configured = enabled;
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!endpoint || status === "submitting") {
+    if (!configured || status === "submitting") {
       return;
     }
 
     setStatus("submitting");
 
     try {
-      const response = await fetch(endpoint, {
+      const response = await fetch(ENDPOINT, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({ ...values, company }),
       });
 
       if (!response.ok) {
@@ -54,6 +62,7 @@ export function ContactFormOverlay({ endpoint, debug }: ContactFormOverlayProps)
 
       setStatus("success");
       setValues(emptyValues);
+      setCompany("");
     } catch {
       setStatus("error");
     }
@@ -74,6 +83,7 @@ export function ContactFormOverlay({ endpoint, debug }: ContactFormOverlayProps)
           required: field.required,
           "aria-label": field.label,
           autoComplete: field.autoComplete,
+          inputMode: field.inputMode,
           value: values[field.name],
           onChange: (event: { target: { value: string } }) =>
             setValues((prev) => ({ ...prev, [field.name]: event.target.value })),
@@ -89,6 +99,28 @@ export function ContactFormOverlay({ endpoint, debug }: ContactFormOverlayProps)
                 width: `${rect.width}%`,
                 height: `${rect.height}%`,
               };
+
+              if (field.inputType === "select") {
+                return (
+                  <select
+                    {...shared}
+                    key={device}
+                    id={`${shared.id}-${device}`}
+                    className={`contact-form__input contact-form__input--${device} contact-form__input--select`}
+                    style={style}
+                    data-field={field.name}
+                    data-device={device}
+                  >
+                    {/* 未選択の見た目はデザイン画像の「選択してください」をそのまま見せる */}
+                    <option value="" />
+                    {(field.options ?? []).map((option) => (
+                      <option key={option} value={option}>
+                        {option}
+                      </option>
+                    ))}
+                  </select>
+                );
+              }
 
               return field.multiline ? (
                 <textarea
@@ -116,6 +148,18 @@ export function ContactFormOverlay({ endpoint, debug }: ContactFormOverlayProps)
           </div>
         );
       })}
+
+      {/* 自動投稿よけ。画面にも読み上げにも出ない。 */}
+      <input
+        type="text"
+        name="company"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="contact-form__honeypot"
+        value={company}
+        onChange={(event) => setCompany(event.target.value)}
+      />
 
       {(["pc", "sp"] as const).map((device) => {
         const rect = contactSubmitRect[device];

@@ -307,7 +307,7 @@ test.describe("動画枠", () => {
 });
 
 test.describe("お問い合わせフォーム", () => {
-  const endpointConfigured = Boolean(process.env.NEXT_PUBLIC_CONTACT_ENDPOINT?.trim());
+  const endpointConfigured = Boolean(process.env.CONTACT_FORWARD_URL?.trim());
 
   test("PCで全入力欄に実際に入力できる", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
@@ -366,6 +366,23 @@ test.describe("お問い合わせフォーム", () => {
     }
   });
 
+  test("自動投稿よけの欄は画面に出ない", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    const honeypot = page.locator(".contact-form__honeypot");
+    await expect(honeypot).toHaveCount(1);
+    await expect(honeypot).toHaveAttribute("aria-hidden", "true");
+    await expect(honeypot).toHaveAttribute("tabindex", "-1");
+
+    // 画面外へ飛ばして見えなくしている（display:none にすると埋めない相手もいるため）
+    const geo = await honeypot.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { right: r.right, opacity: Number(getComputedStyle(el).opacity) };
+    });
+    expect(geo.right).toBeLessThan(0);
+    expect(geo.opacity).toBe(0);
+  });
+
   test("フォームはPC/SPどちらか一方の入力欄だけが表示される", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto("/");
@@ -385,5 +402,71 @@ test.describe("お問い合わせフォーム", () => {
         ).length,
     );
     expect(visiblePc).toBe(0);
+  });
+});
+
+test.describe("お問い合わせの受け口（/api/contact）", () => {
+  const forwardConfigured = Boolean(process.env.CONTACT_FORWARD_URL?.trim());
+
+  const validBody = {
+    name: "山田 太郎",
+    kana: "ヤマダ タロウ",
+    tel: "090-1234-5678",
+    email: "taro@example.com",
+    message: "話を聞いてみたいです",
+  };
+
+  test("必須項目が欠けていると受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, name: "" },
+    });
+    expect(response.status()).toBe(400);
+    const body = await response.json();
+    expect(body.error).toBe("invalid_input");
+    expect(body.invalid).toContain("名前");
+  });
+
+  test("文字数の上限を超えると受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, message: "あ".repeat(5001) },
+    });
+    expect(response.status()).toBe(400);
+    expect((await response.json()).invalid).toContain("メッセージ");
+  });
+
+  test("メールアドレスの形式を検査する", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, email: "not-an-email" },
+    });
+    expect(response.status()).toBe(400);
+    expect((await response.json()).invalid).toContain("メールアドレスの形式");
+  });
+
+  test("本文がJSONでなければ受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      headers: { "Content-Type": "application/json" },
+      data: "not json",
+    });
+    expect(response.status()).toBe(400);
+  });
+
+  test("自動投稿よけの欄が埋まっていても、内部的には記録しない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, company: "spam" },
+    });
+    // 送信者には成功に見せたうえで、中継はしない
+    expect(response.status()).toBe(200);
+    expect((await response.json()).ok).toBe(true);
+  });
+
+  test(`中継先${forwardConfigured ? "設定済み" : "未設定"}のときの応答`, async ({ request }) => {
+    const response = await request.post("/api/contact", { data: validBody });
+
+    if (forwardConfigured) {
+      expect([200, 502]).toContain(response.status());
+    } else {
+      expect(response.status()).toBe(503);
+      expect((await response.json()).error).toBe("not_configured");
+    }
   });
 });

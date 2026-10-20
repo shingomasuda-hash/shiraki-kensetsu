@@ -47,8 +47,14 @@ export const siteLinks = {
     president: normalizeUrl(process.env.NEXT_PUBLIC_PRESIDENT_VIDEO_URL),
   },
 
-  /** お問い合わせフォームの送信先（未設定の場合、送信ボタンは無効化される） */
-  contactEndpoint: normalizeUrl(process.env.NEXT_PUBLIC_CONTACT_ENDPOINT),
+  /**
+   * お問い合わせフォームが使える状態かどうか。
+   *
+   * 送信先は同一オリジンの /api/contact に固定し、そこから Google Apps Script
+   * （scripts/contact-form.gs）へ中継する。中継先URLはサーバー側だけが持つため、
+   * ページのHTMLには出ない。未設定の場合は送信ボタンを無効化する。
+   */
+  contactFormEnabled: Boolean(process.env.CONTACT_FORWARD_URL?.trim()),
 } as const;
 
 /** 環境変数名 -> 解決済みURL。動画スロットの envKey から引くために使用する。 */
