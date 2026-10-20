@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 try:
-    from PIL import Image, ImageStat
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageStat
 except ImportError:
     print("Pillow がインストールされていません。")
     print("  pip install pillow")
@@ -98,6 +98,142 @@ class SectionResult:
     src_bytes: int
     webp_bytes: int
     bottom_color: str
+
+
+# ---------------------------------------------------------------------------
+# セクション単体の差し替え
+#
+# デザインの一部だけが更新された場合、全ページのトレースを書き出し直さなくても
+# ここに置いたファイルがそのセクションの画像として使われる。
+# （キー: セクションID と デバイス / 値: source/ からの相対パス）
+# ---------------------------------------------------------------------------
+SECTION_OVERRIDES = {
+    ("contact", "pc"): "sections/12-contact-pc.jpg",
+    ("contact", "sp"): "sections/12-contact-sp.jpg",
+}
+
+
+# ---------------------------------------------------------------------------
+# お問い合わせフォームの描き替え
+#
+# 差し替えたデザインは「年齢」「性別」の2欄が増えたが、依頼内容は
+#   ・「年齢」を「生年月日」にする
+#   ・「生年月日」「性別」にも必須バッジを付ける
+# のため、その2点だけを画像上で直す。
+#
+# 「年齢」の文字は写真の上に乗っているので、同じ行の文字が無い部分から
+# 写真を持ってきて消し込んでから、新しい文字を描いている。
+#
+# 座標は差し替え元画像の実寸基準（ref_w）。別の解像度で書き出し直された
+# 場合も幅から自動換算する。
+# 元データ側でラベルと必須バッジが直されたら、この描き替えは不要になる。
+# ---------------------------------------------------------------------------
+CONTACT_FORM_EDITS = {
+    "pc": dict(
+        ref_w=1536,
+        age_ink=(304, 482, 343, 500),     # 「年齢」の文字の範囲 (x0,y0,x1,y1)
+        patch_x=420,                      # 消し込みに使う「写真だけ」の位置(x)
+        # 「性別」の文字の右端と中心y（PCは生年月日と同じ行、SPは別の行にある）
+        gender_ink=(816, 491),
+        label_size=22.0,
+        badge=dict(w=46, h=26, radius=6, size=13.5, gap=9),
+        age_box=(308, 524, 752, 578),     # 「年齢」の入力欄
+        placeholder=dict(x=323, size=21.0),
+    ),
+    "sp": dict(
+        ref_w=563,
+        age_ink=(31, 623, 64, 638),
+        patch_x=150,
+        gender_ink=(63, 735),
+        label_size=18.5,
+        badge=dict(w=45, h=23, radius=5, size=12.0, gap=9),
+        age_box=(30, 650, 531, 702),
+        placeholder=dict(x=48, size=19.0),
+    ),
+}
+
+FONT_DIR = ROOT / "scripts" / "fonts"
+BIRTHDAY_LABEL = "生年月日"
+BIRTHDAY_PLACEHOLDER = "例：1998年4月1日"
+BADGE_TEXT = "必須"
+BADGE_COLOR = (21, 171, 64)
+LABEL_COLOR = (255, 255, 255)
+PLACEHOLDER_COLOR = (150, 150, 150)
+
+
+def _font(weight: int, size: float) -> ImageFont.FreeTypeFont:
+    path = FONT_DIR / f"NotoSansJP-{weight}.subset.ttf"
+    if not path.exists():
+        log(f"ERROR: フォントが見つかりません: {path}")
+        sys.exit(1)
+    return ImageFont.truetype(str(path), max(1, round(size)))
+
+
+def _erase_onto_photo(image: Image.Image, area: tuple[int, int, int, int], source_x: int) -> None:
+    """写真の上に乗った文字を、同じ行の「文字が無い部分」の写真で塗り潰す。
+
+    縦にずらすと写真の内容が変わってしまうため、横方向から持ってくる。
+    貼り付けの境目が出ないよう、縁をぼかしたマスクで合成する。
+    """
+    x0, y0, x1, y1 = area
+    width, height = x1 - x0, y1 - y0
+    patch = image.crop((source_x, y0, source_x + width, y1))
+
+    feather = max(2, width // 12)
+    mask = Image.new("L", (width, height), 0)
+    ImageDraw.Draw(mask).rectangle(
+        [feather, feather, width - 1 - feather, height - 1 - feather], fill=255
+    )
+    image.paste(patch, (x0, y0), mask.filter(ImageFilter.GaussianBlur(feather)))
+
+
+def _draw_badge(draw: ImageDraw.ImageDraw, x: int, cy: int, cfg: dict, scale: float) -> None:
+    w, h = round(cfg["w"] * scale), round(cfg["h"] * scale)
+    draw.rounded_rectangle(
+        [x, cy - h // 2, x + w, cy - h // 2 + h],
+        radius=max(1, round(cfg["radius"] * scale)), fill=BADGE_COLOR,
+    )
+    draw.text((x + w // 2, cy + max(1, round(scale))), BADGE_TEXT,
+              font=_font(700, cfg["size"] * scale), fill=LABEL_COLOR, anchor="mm")
+
+
+def apply_contact_form_edits(image: Image.Image, device: str) -> Image.Image:
+    """「年齢」を「生年月日」へ直し、生年月日・性別へ必須バッジを足す。"""
+    cfg = CONTACT_FORM_EDITS[device]
+    scale = image.width / cfg["ref_w"]
+    px = lambda v: round(v * scale)
+
+    out = image.convert("RGB").copy()
+    ax0, ay0, ax1, ay1 = (px(v) for v in cfg["age_ink"])
+    pad = px(6)
+
+    # 1. 「年齢」を消す
+    _erase_onto_photo(out, (ax0 - pad, ay0 - pad, ax1 + pad, ay1 + pad), px(cfg["patch_x"]))
+
+    draw = ImageDraw.Draw(out)
+    label_font = _font(700, cfg["label_size"] * scale)
+    cy = (ay0 + ay1) // 2
+    badge = cfg["badge"]
+
+    # 2. 「生年月日」を描き、必須バッジを付ける
+    draw.text((ax0, cy), BIRTHDAY_LABEL, font=label_font, fill=LABEL_COLOR, anchor="lm")
+    label_w = round(draw.textlength(BIRTHDAY_LABEL, font=label_font))
+    _draw_badge(draw, ax0 + label_w + px(badge["gap"]), cy, badge, scale)
+
+    # 3. 「性別」にも必須バッジを付ける（こちらは消し込み不要）
+    gender_right, gender_cy = cfg["gender_ink"]
+    _draw_badge(draw, px(gender_right) + px(badge["gap"]), px(gender_cy), badge, scale)
+
+    # 4. 入力欄の「例：30」を書き替える
+    bx0, by0, bx1, by1 = (px(v) for v in cfg["age_box"])
+    inset = px(9)
+    draw.rectangle([bx0 + inset, by0 + inset, bx1 - inset, by1 - inset], fill=(255, 255, 255))
+    draw.text((px(cfg["placeholder"]["x"]), (by0 + by1) // 2), BIRTHDAY_PLACEHOLDER,
+              font=_font(400, cfg["placeholder"]["size"] * scale),
+              fill=PLACEHOLDER_COLOR, anchor="lm")
+
+    log(f"{device.upper()} お問い合わせ: 年齢→生年月日の書き替えと必須バッジを反映しました")
+    return out
 
 
 def bottom_edge_color(image: Image.Image) -> str:
@@ -191,6 +327,14 @@ def generate_device(
         top = boundaries[i]
         bottom = boundaries[i + 1]
         crop = image.crop((0, top, image.width, bottom))
+
+        override = SECTION_OVERRIDES.get((section["id"], device))
+        if override:
+            crop = Image.open(SOURCE_DIR / override).convert("RGB")
+            log(f"{device.upper()} {section['file']:<16} 差し替え元を使用: source/{override}")
+
+        if section["id"] == "contact":
+            crop = apply_contact_form_edits(crop, device)
 
         png_path = tmp_device_dir / f"{section['file']}.png"
         webp_path = out_dir / f"{section['file']}.webp"

@@ -101,24 +101,31 @@ VIDEOS = [
 # src/config/contactForm.ts と同じ値
 FORM_FIELDS = [
     ("name", "名前", "text", False, "例：山田 太郎",
-     dict(left=20.02, top=32.714, width=29.004, height=6.877),
-     dict(left=5.333, top=22.844, width=89.333, height=5.295)),
+     dict(left=20.052, top=28.205, width=28.971, height=5.876),
+     dict(left=5.329, top=18.750, width=89.165, height=4.500)),
     ("kana", "フリガナ", "text", False, "例：ヤマダ　タロウ",
-     dict(left=50.879, top=32.714, width=28.711, height=6.877),
-     dict(left=5.333, top=33.585, width=89.333, height=5.295)),
+     dict(left=50.911, top=28.205, width=28.646, height=5.876),
+     dict(left=5.329, top=27.667, width=89.165, height=4.417)),
     ("tel", "電話番号", "tel", False, "例：090-1234-5678",
-     dict(left=20.02, top=49.071, width=29.004, height=6.691),
-     dict(left=5.333, top=44.327, width=89.333, height=5.295)),
+     dict(left=20.443, top=42.201, width=28.581, height=5.983),
+     dict(left=5.329, top=36.500, width=89.165, height=4.500)),
     ("email", "メールアドレス", "email", False, "例：example@shiraki-const.jp",
-     dict(left=50.879, top=49.071, width=29.004, height=6.691),
-     dict(left=5.333, top=55.068, width=89.333, height=5.295)),
+     dict(left=50.911, top=42.201, width=28.971, height=5.983),
+     dict(left=5.329, top=45.417, width=89.165, height=4.417)),
+    ("birthday", "生年月日", "text", False, "例：1998年4月1日",
+     dict(left=20.052, top=55.983, width=28.971, height=5.876),
+     dict(left=5.329, top=54.167, width=89.165, height=4.417)),
+    ("gender", "性別", "select", False, "選択してください",
+     dict(left=50.911, top=55.983, width=28.971, height=5.876),
+     dict(left=5.329, top=62.917, width=89.165, height=4.417)),
     ("message", "メッセージ", "text", True, "気になることをご自由にお書きください",
-     dict(left=20.02, top=63.755, width=59.961, height=19.888),
-     dict(left=5.333, top=65.809, width=89.333, height=14.977)),
+     dict(left=20.052, top=68.803, width=59.896, height=17.094),
+     dict(left=5.329, top=71.750, width=89.165, height=12.500)),
 ]
+GENDER_OPTIONS = ["男性", "女性", "その他"]
 SUBMIT_RECT = (
-    dict(left=38.574, top=85.688, width=23.145, height=7.807),
-    dict(left=26.133, top=83.056, width=47.733, height=6.051),
+    dict(left=38.607, top=87.821, width=23.112, height=6.410),
+    dict(left=26.110, top=86.000, width=47.780, height=5.083),
 )
 
 # src/config/mobileNav.ts と同じ値
@@ -255,6 +262,7 @@ def main() -> None:
         "fields": fields,
         "submit": {"pc": SUBMIT_RECT[0], "sp": SUBMIT_RECT[1]},
         "navItems": [{"target": t, "label": l} for t, l in MOBILE_NAV_ITEMS],
+        "genderOptions": GENDER_OPTIONS,
         "navTrigger": MOBILE_NAV_TRIGGER,
     }
 
@@ -477,6 +485,7 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
     pointer-events: none;
   }
 
+  .fld--select { -webkit-appearance: none; appearance: none; cursor: pointer; }
   .fld {
     position: absolute;
     margin: 0;
@@ -685,8 +694,16 @@ function render() {
     if (sec.id === 'contact') {
       for (const f of DATA.fields) {
         const r = f[device];
-        const input = document.createElement(f.multiline ? 'textarea' : 'input');
-        if (!f.multiline) input.type = f.type;
+        const isSelect = f.type === 'select';
+        const input = document.createElement(isSelect ? 'select' : f.multiline ? 'textarea' : 'input');
+        if (isSelect) {
+          // 未選択のうちはデザイン画像の「選択してください」を見せる
+          input.appendChild(new Option('', ''));
+          for (const option of (DATA.genderOptions || [])) input.appendChild(new Option(option, option));
+          input.classList.add('fld--select');
+        } else if (!f.multiline) {
+          input.type = f.type;
+        }
         input.className = 'fld';
         input.style.cssText = pct(r);
         input.setAttribute('aria-label', f.label);

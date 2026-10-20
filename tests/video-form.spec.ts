@@ -319,10 +319,14 @@ test.describe("お問い合わせフォーム", () => {
     await page.fill("#contact-tel-pc", "090-1234-5678");
     await page.fill("#contact-email-pc", "taro@example.com");
     await page.fill("#contact-message-pc", "話を聞いてみたいです");
+    await page.fill("#contact-birthday-pc", "1998年4月1日");
+    await page.selectOption("#contact-gender-pc", "男性");
 
     await expect(page.locator("#contact-name-pc")).toHaveValue("山田 太郎");
     await expect(page.locator("#contact-email-pc")).toHaveValue("taro@example.com");
     await expect(page.locator("#contact-message-pc")).toHaveValue("話を聞いてみたいです");
+    await expect(page.locator("#contact-birthday-pc")).toHaveValue("1998年4月1日");
+    await expect(page.locator("#contact-gender-pc")).toHaveValue("男性");
   });
 
   test("SPで全入力欄に実際に入力できる", async ({ page }) => {
@@ -332,8 +336,12 @@ test.describe("お問い合わせフォーム", () => {
 
     await page.fill("#contact-name-sp", "鈴木 花子");
     await page.fill("#contact-tel-sp", "080-0000-0000");
+    await page.fill("#contact-birthday-sp", "2000/1/9");
+    await page.selectOption("#contact-gender-sp", "女性");
     await expect(page.locator("#contact-name-sp")).toHaveValue("鈴木 花子");
     await expect(page.locator("#contact-tel-sp")).toHaveValue("080-0000-0000");
+    await expect(page.locator("#contact-birthday-sp")).toHaveValue("2000/1/9");
+    await expect(page.locator("#contact-gender-sp")).toHaveValue("女性");
   });
 
   test("入力欄はデザイン画像の枠内に収まっている（PC）", async ({ page }) => {
@@ -342,7 +350,7 @@ test.describe("お問い合わせフォーム", () => {
     await page.locator("#contact").scrollIntoViewIfNeeded();
 
     const section = await page.locator("#contact").boundingBox();
-    for (const field of ["name", "kana", "tel", "email", "message"]) {
+    for (const field of ["name", "kana", "tel", "email", "birthday", "gender", "message"]) {
       const box = await page.locator(`#contact-${field}-pc`).boundingBox();
       expect(box).not.toBeNull();
       expect(box!.x).toBeGreaterThanOrEqual(section!.x - 1);
@@ -364,6 +372,50 @@ test.describe("お問い合わせフォーム", () => {
     } else {
       await expect(submit).toBeDisabled();
     }
+  });
+
+  test("全7項目が必須で、デザインどおりの順に並んでいる", async ({ page }) => {
+    for (const [device, width] of [
+      ["pc", 1366],
+      ["sp", 390],
+    ] as const) {
+      await page.setViewportSize({ width, height: 1000 });
+      await page.goto("/");
+      await page.locator("#contact").scrollIntoViewIfNeeded();
+
+      const fields = ["name", "kana", "tel", "email", "birthday", "gender", "message"];
+      for (const field of fields) {
+        await expect(page.locator(`#contact-${field}-${device}`)).toHaveAttribute("required", "");
+      }
+
+      // 画面上の並び順（上から、同じ行なら左から）がデザインと一致する
+      const order = await page.evaluate(
+        ({ dev, names }) =>
+          names
+            .map((name) => {
+              const r = document.querySelector(`#contact-${name}-${dev}`)!.getBoundingClientRect();
+              return { name, top: Math.round(r.top), left: Math.round(r.left) };
+            })
+            .sort((a, b) => a.top - b.top || a.left - b.left)
+            .map((item) => item.name),
+        { dev: device, names: fields },
+      );
+      expect(order).toEqual(fields);
+    }
+  });
+
+  test("性別は選択式で、用意した選択肢だけを選べる", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    const select = page.locator("#contact-gender-pc");
+
+    await expect(select).toHaveJSProperty("tagName", "SELECT");
+    const options = await select.locator("option").allTextContents();
+    // 先頭は未選択（デザイン画像の「選択してください」を見せるための空の選択肢）
+    expect(options).toEqual(["", "男性", "女性", "その他"]);
+
+    await select.selectOption("その他");
+    await expect(select).toHaveValue("その他");
   });
 
   test("自動投稿よけの欄は画面に出ない", async ({ page }) => {
@@ -411,6 +463,8 @@ test.describe("お問い合わせの受け口（/api/contact）", () => {
   const validBody = {
     name: "山田 太郎",
     kana: "ヤマダ タロウ",
+    birthday: "1998年4月1日",
+    gender: "男性",
     tel: "090-1234-5678",
     email: "taro@example.com",
     message: "話を聞いてみたいです",
@@ -424,6 +478,22 @@ test.describe("お問い合わせの受け口（/api/contact）", () => {
     const body = await response.json();
     expect(body.error).toBe("invalid_input");
     expect(body.invalid).toContain("名前");
+  });
+
+  test("生年月日が空だと受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, birthday: "" },
+    });
+    expect(response.status()).toBe(400);
+    expect((await response.json()).invalid).toContain("生年月日");
+  });
+
+  test("性別は用意した選択肢以外を受け付けない", async ({ request }) => {
+    const response = await request.post("/api/contact", {
+      data: { ...validBody, gender: "未入力" },
+    });
+    expect(response.status()).toBe(400);
+    expect((await response.json()).invalid).toContain("性別");
   });
 
   test("文字数の上限を超えると受け付けない", async ({ request }) => {

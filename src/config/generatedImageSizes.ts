@@ -185,15 +185,15 @@ export const generatedImageSizes: GeneratedSectionImages[] = [
     id: "contact",
     pc: {
       file: "/design/pc/12-contact.webp",
-      width: 2048,
-      height: 1076,
-      bottomColor: "#2d684e",
+      width: 1536,
+      height: 936,
+      bottomColor: "#347056",
     },
     sp: {
       file: "/design/sp/12-contact.webp",
-      width: 750,
-      height: 1322,
-      bottomColor: "#417c58",
+      width: 563,
+      height: 1200,
+      bottomColor: "#417e59",
     },
   },
   {
