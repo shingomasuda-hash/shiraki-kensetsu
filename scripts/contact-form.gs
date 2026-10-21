@@ -10,7 +10,9 @@
  *  1. Googleドライブで新しいスプレッドシートを作る（名前は「白木建設 採用 お問い合わせ」など）
  *  2. そのスプレッドシートで「拡張機能 > Apps Script」を開く
  *  3. エディタの中身をすべて消し、このファイルの内容を貼り付ける
- *  4. 下の設定（NOTIFY_TO / SHARED_SECRET）を書き換えて保存する
+ *  4. 左の「ファイル」の「＋」→「スクリプト」で「設定」という名前のファイルを作り、
+ *     contact-form-settings.gs の内容を貼り付けて、宛先と合言葉を入力する
+ *     （設定を別ファイルにしているのは、本体を更新しても設定が消えないようにするため）
  *  5. 右上の「デプロイ > 新しいデプロイ」を選ぶ
  *       種類            : ウェブアプリ
  *       次のユーザーとして実行 : 自分
@@ -18,37 +20,40 @@
  *  6. 表示された「ウェブアプリのURL」をコピーする
  *  7. Vercelの環境変数へ設定する
  *       CONTACT_FORWARD_URL   = コピーしたURL
- *       CONTACT_SHARED_SECRET = 下の SHARED_SECRET と同じ文字列
+ *       CONTACT_SHARED_SECRET = 設定.gs の SHARED_SECRET と同じ文字列
  *  8. 再デプロイすると、フォームの送信ボタンが有効になる
  *
  * ※ 初回デプロイ時に「このアプリはGoogleで確認されていません」と出ますが、
  *    ご自身で作成したスクリプトのため「詳細 > 安全でないページに移動」で進めて問題ありません。
  * ※ スクリプトを修正したときは「デプロイ > デプロイを管理 > 編集 > 新バージョン」で更新してください。
  *    （新規デプロイにするとURLが変わります）
+ * ※ 本体（このファイル）を貼り替えるときも、「設定」ファイルはそのままにしてください。
  */
 
-// ===== 設定 ===============================================================
-
-/** 通知メールの宛先。カンマ区切りで複数指定できます。 */
-var NOTIFY_TO = '';
-
-/** Vercel の CONTACT_SHARED_SECRET と同じ文字列。空にすると認証なしになります。 */
-var SHARED_SECRET = '';
-
-/** 書き込み先シート名。無ければ自動で作成します。 */
-var SHEET_NAME = 'お問い合わせ';
-
-/** メールの差出人名 */
-var SENDER_NAME = '白木建設株式会社 採用担当';
-
-/** 自動返信メールの署名に入れる会社情報 */
-var COMPANY_SIGNATURE = [
-  '────────────────────',
-  '白木建設株式会社 採用担当',
-  '────────────────────',
-].join('\n');
-
-// ==========================================================================
+/**
+ * 設定の読み取り。
+ *
+ * 値は別ファイル（設定.gs）で定義している。本体を貼り替えても設定が
+ * 消えないようにするため。設定ファイルがまだ無い場合も動くよう、
+ * ここで既定値を補っている。
+ */
+function config() {
+  return {
+    notifyTo: typeof NOTIFY_TO !== 'undefined' && NOTIFY_TO ? String(NOTIFY_TO) : '',
+    secret: typeof SHARED_SECRET !== 'undefined' && SHARED_SECRET ? String(SHARED_SECRET) : '',
+    sheetName:
+      typeof SHEET_NAME !== 'undefined' && SHEET_NAME ? String(SHEET_NAME) : 'お問い合わせ',
+    senderName:
+      typeof SENDER_NAME !== 'undefined' && SENDER_NAME
+        ? String(SENDER_NAME)
+        : '白木建設株式会社 採用担当',
+    signature:
+      typeof COMPANY_SIGNATURE !== 'undefined' && COMPANY_SIGNATURE
+        ? String(COMPANY_SIGNATURE)
+        : '',
+    settingsFileFound: typeof NOTIFY_TO !== 'undefined',
+  };
+}
 
 var HEADERS = [
   '受信日時',
@@ -75,7 +80,8 @@ function doPost(e) {
 
     var data = JSON.parse(e.postData.contents);
 
-    if (SHARED_SECRET && data.secret !== SHARED_SECRET) {
+    var cfg = config();
+    if (cfg.secret && data.secret !== cfg.secret) {
       return json({ ok: false, error: 'forbidden' });
     }
 
@@ -117,10 +123,11 @@ function doPost(e) {
 /** 書き込み先シートを返す（無ければ見出し付きで作成する） */
 function getSheet() {
   var book = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = book.getSheetByName(SHEET_NAME);
+  var name = config().sheetName;
+  var sheet = book.getSheetByName(name);
 
   if (!sheet) {
-    sheet = book.insertSheet(SHEET_NAME);
+    sheet = book.insertSheet(name);
   }
 
   if (sheet.getLastRow() > 0) {
@@ -178,9 +185,10 @@ function sendSafely(send, label) {
 }
 
 function notifyStaff(record) {
-  if (!NOTIFY_TO) {
+  var cfg = config();
+  if (!cfg.notifyTo) {
     // 黙って送られないままになるのを防ぐため、はっきり失敗させる
-    throw new Error('NOTIFY_TO（通知メールの宛先）が設定されていません');
+    throw new Error('NOTIFY_TO（通知メールの宛先）が設定されていません。設定.gs を確認してください');
   }
 
   var lines = [
@@ -202,15 +210,16 @@ function notifyStaff(record) {
   ];
 
   MailApp.sendEmail({
-    to: NOTIFY_TO,
+    to: cfg.notifyTo,
     subject: '【採用LP】お問い合わせ: ' + record.name + ' 様',
     body: lines.join('\n'),
-    name: SENDER_NAME,
+    name: cfg.senderName,
     replyTo: record.email,
   });
 }
 
 function replyToSender(record) {
+  var cfg = config();
   var lines = [
     record.name + ' 様',
     '',
@@ -232,14 +241,14 @@ function replyToSender(record) {
     '※ このメールは自動送信です。ご返信いただいても確認できない場合があります。',
     '　 お急ぎの場合は、お手数ですが担当者からの連絡をお待ちください。',
     '',
-    COMPANY_SIGNATURE,
+    cfg.signature,
   ];
 
   MailApp.sendEmail({
     to: record.email,
     subject: '【白木建設株式会社】お問い合わせありがとうございます',
     body: lines.join('\n'),
-    name: SENDER_NAME,
+    name: cfg.senderName,
   });
 }
 
@@ -258,17 +267,22 @@ function json(payload) {
  * 宛先の設定漏れや、その日に送れるメールの残り通数が分かります。
  */
 function checkSettings() {
+  var cfg = config();
   var lines = [];
 
-  if (!NOTIFY_TO) {
-    lines.push('× NOTIFY_TO が空です。通知メールの宛先を設定してください。');
-  } else if (NOTIFY_TO.indexOf('@') === -1) {
-    lines.push('× NOTIFY_TO がメールアドレスの形式ではありません: ' + NOTIFY_TO);
-  } else {
-    lines.push('○ 通知メールの宛先: ' + NOTIFY_TO);
+  if (!cfg.settingsFileFound) {
+    lines.push('× 設定ファイル（設定.gs）が見つかりません。作成してください。');
   }
 
-  if (!SHARED_SECRET) {
+  if (!cfg.notifyTo) {
+    lines.push('× NOTIFY_TO が空です。通知メールの宛先を設定してください。');
+  } else if (cfg.notifyTo.indexOf('@') === -1) {
+    lines.push('× NOTIFY_TO がメールアドレスの形式ではありません: ' + cfg.notifyTo);
+  } else {
+    lines.push('○ 通知メールの宛先: ' + cfg.notifyTo);
+  }
+
+  if (!cfg.secret) {
     lines.push('△ SHARED_SECRET が空です。URLを知っていれば誰でも送信できる状態です。');
   } else {
     lines.push('○ 合言葉は設定済みです（Vercel の CONTACT_SHARED_SECRET と同じ値か確認してください）');
@@ -288,26 +302,27 @@ function checkSettings() {
 /**
  * 設置確認用。エディタ上でこの関数を実行すると、
  * シートへのテスト行の追加と、通知・自動返信メールの送信を1回試します。
- * NOTIFY_TO 宛に届けば設定は完了です（テスト行は手で削除してください）。
+ * 通知メールの宛先に届けば設定は完了です（テスト行は手で削除してください）。
  */
 function testSubmission() {
-  if (!NOTIFY_TO) {
+  var cfg = config();
+  if (!cfg.notifyTo) {
     throw new Error(
-      'NOTIFY_TO（通知メールの宛先）が未設定です。ファイル上部の設定を入力してから実行してください。'
+      'NOTIFY_TO（通知メールの宛先）が未設定です。設定.gs を作成・入力してから実行してください。'
     );
   }
 
   doPost({
     postData: {
       contents: JSON.stringify({
-        secret: SHARED_SECRET,
+        secret: cfg.secret,
         name: 'テスト 太郎',
         kana: 'テスト タロウ',
         birthday: '1998年4月1日',
         birthdayIso: '1998-04-01',
         gender: '男性',
         tel: '090-1234-5678',
-        email: NOTIFY_TO.split(',')[0],
+        email: cfg.notifyTo.split(',')[0],
         message: 'これは設置確認用のテスト送信です。',
         submittedAt: new Date().toISOString(),
       }),
