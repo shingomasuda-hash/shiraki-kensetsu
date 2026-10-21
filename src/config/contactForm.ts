@@ -17,6 +17,7 @@ import type { FormFieldDefinition, RelativeRect } from "@/types/design";
 export const contactFormFields: FormFieldDefinition[] = [
   {
     name: "name",
+    placeholder: "例：山田 太郎",
     label: "名前",
     inputType: "text",
     autoComplete: "name",
@@ -27,6 +28,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "kana",
+    placeholder: "例：ヤマダ　タロウ",
     label: "フリガナ",
     inputType: "text",
     required: true,
@@ -36,6 +38,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "tel",
+    placeholder: "例：090-1234-5678",
     label: "電話番号",
     inputType: "tel",
     autoComplete: "tel",
@@ -46,6 +49,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "email",
+    placeholder: "例：example@shiraki-const.jp",
     label: "メールアドレス",
     inputType: "email",
     autoComplete: "email",
@@ -57,12 +61,11 @@ export const contactFormFields: FormFieldDefinition[] = [
   {
     name: "birthday",
     label: "生年月日",
-    inputType: "text",
+    // カレンダーから選べるようにする（スマホではネイティブの日付選択が出る）
+    inputType: "date",
     autoComplete: "bday",
     required: true,
     maxLength: 40,
-    // 「1998年4月1日」のような表記を受け付けつつ、数字を打ちやすくする
-    inputMode: "numeric",
     pc: { left: 20.052, top: 55.983, width: 28.971, height: 5.876 },
     sp: { left: 5.329, top: 54.167, width: 89.165, height: 4.417 },
   },
@@ -78,6 +81,7 @@ export const contactFormFields: FormFieldDefinition[] = [
   },
   {
     name: "message",
+    placeholder: "気になることをご自由にお書きください",
     label: "メッセージ",
     inputType: "text",
     multiline: true,

@@ -319,13 +319,13 @@ test.describe("お問い合わせフォーム", () => {
     await page.fill("#contact-tel-pc", "090-1234-5678");
     await page.fill("#contact-email-pc", "taro@example.com");
     await page.fill("#contact-message-pc", "話を聞いてみたいです");
-    await page.fill("#contact-birthday-pc", "1998年4月1日");
+    await page.fill("#contact-birthday-pc", "1998-04-01");
     await page.selectOption("#contact-gender-pc", "男性");
 
     await expect(page.locator("#contact-name-pc")).toHaveValue("山田 太郎");
     await expect(page.locator("#contact-email-pc")).toHaveValue("taro@example.com");
     await expect(page.locator("#contact-message-pc")).toHaveValue("話を聞いてみたいです");
-    await expect(page.locator("#contact-birthday-pc")).toHaveValue("1998年4月1日");
+    await expect(page.locator("#contact-birthday-pc")).toHaveValue("1998-04-01");
     await expect(page.locator("#contact-gender-pc")).toHaveValue("男性");
   });
 
@@ -336,11 +336,11 @@ test.describe("お問い合わせフォーム", () => {
 
     await page.fill("#contact-name-sp", "鈴木 花子");
     await page.fill("#contact-tel-sp", "080-0000-0000");
-    await page.fill("#contact-birthday-sp", "2000/1/9");
+    await page.fill("#contact-birthday-sp", "2000-01-09");
     await page.selectOption("#contact-gender-sp", "女性");
     await expect(page.locator("#contact-name-sp")).toHaveValue("鈴木 花子");
     await expect(page.locator("#contact-tel-sp")).toHaveValue("080-0000-0000");
-    await expect(page.locator("#contact-birthday-sp")).toHaveValue("2000/1/9");
+    await expect(page.locator("#contact-birthday-sp")).toHaveValue("2000-01-09");
     await expect(page.locator("#contact-gender-sp")).toHaveValue("女性");
   });
 
@@ -418,6 +418,51 @@ test.describe("お問い合わせフォーム", () => {
     await expect(select).toHaveValue("その他");
   });
 
+  test("入力するとデザインの例文が隠れる（二重表示にならない）", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    await page.locator("#contact").scrollIntoViewIfNeeded();
+
+    const TRANSPARENT = "rgba(0, 0, 0, 0)";
+    const WHITE = "rgb(255, 255, 255)";
+    const background = (field: string) =>
+      page
+        .locator(`#contact-${field}-pc`)
+        .evaluate((el) => getComputedStyle(el).backgroundColor);
+
+    // 未入力のうちは透明で、デザイン画像の例文が見えている
+    for (const field of ["name", "birthday", "gender", "message"]) {
+      expect(await background(field)).toBe(TRANSPARENT);
+    }
+
+    await page.fill("#contact-name-pc", "増田 テスト");
+    await page.fill("#contact-message-pc", "話を聞いてみたいです");
+    await page.fill("#contact-birthday-pc", "1998-04-01");
+    await page.selectOption("#contact-gender-pc", "男性");
+
+    // 入力されたら白で塗りつぶし、下の例文を隠す
+    for (const field of ["name", "birthday", "gender", "message"]) {
+      expect(await background(field)).toBe(WHITE);
+    }
+  });
+
+  test("生年月日はカレンダーから選べる", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    const input = page.locator("#contact-birthday-pc");
+
+    await expect(input).toHaveAttribute("type", "date");
+    await expect(input).toHaveAttribute("min", "1900-01-01");
+    // 未来の日付は選べない
+    const max = await input.getAttribute("max");
+    expect(new Date(max!).getTime()).toBeLessThanOrEqual(Date.now());
+
+    // 未入力のうちはブラウザ既定の「年/月/日」を隠し、デザインの例文を見せる
+    expect(
+      await input.evaluate((el) => getComputedStyle(el).color),
+    ).toBe("rgba(0, 0, 0, 0)");
+  });
+
   test("自動投稿よけの欄は画面に出ない", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto("/");
@@ -478,6 +523,27 @@ test.describe("お問い合わせの受け口（/api/contact）", () => {
     const body = await response.json();
     expect(body.error).toBe("invalid_input");
     expect(body.invalid).toContain("名前");
+  });
+
+  test("生年月日は日付の形に整えて渡す", async ({ request }) => {
+    // 画面からは 1998-04-01 の形で届くが、手入力の表記ゆれも受け取れる
+    for (const value of ["1998-04-01", "1998年4月1日", "1998/4/1", "１９９８年４月１日"]) {
+      const response = await request.post("/api/contact", {
+        data: { ...validBody, birthday: value },
+      });
+      // 中継先が未設定なら 503、設定済みなら 200/502。いずれにせよ入力不備ではない
+      expect(response.status()).not.toBe(400);
+    }
+  });
+
+  test("実在しない日付や未来の日付は生年月日として扱わない", async ({ request }) => {
+    for (const value of ["2098-04-01", "1998-02-30"]) {
+      const response = await request.post("/api/contact", {
+        data: { ...validBody, birthday: value },
+      });
+      // 入力そのものは受け取るが、並べ替え用のISO形式は付かない
+      expect(response.status()).not.toBe(400);
+    }
   });
 
   test("生年月日が空だと受け付けない", async ({ request }) => {

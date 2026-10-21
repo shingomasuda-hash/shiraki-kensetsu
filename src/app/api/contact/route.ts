@@ -30,29 +30,44 @@ const FIELDS = contactFormFields.map((field) => ({
 
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
-/** 全角数字を半角へ寄せたうえで、年月日が読み取れれば ISO 形式も添える */
+/**
+ * 生年月日を整える。
+ *
+ * 画面からは日付選択で `1998-04-01` の形で届くが、手入力や他の経路からの
+ * `1998年4月1日` `1998/4/1` `１９９８年４月１日` なども受け取れるようにしておく。
+ *
+ * - text … メールに載せる読みやすい表記（`1998年4月1日`）
+ * - iso  … スプレッドシートで並べ替えるための `1998-04-01`
+ *
+ * 日付として成立しない場合や未来の日付の場合は iso を空にして返す。
+ */
 const normalizeBirthday = (raw: string) => {
-  const half = raw.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
+  const trimmed = raw.trim();
+  const half = trimmed.replace(/[０-９]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0));
   const match = half.match(/(\d{4})\D{0,2}(\d{1,2})\D{0,2}(\d{1,2})/);
   if (!match) {
-    return { text: raw.trim(), iso: "" };
+    return { text: trimmed, iso: "" };
   }
 
   const [, y, m, d] = match;
   const year = Number(y);
   const month = Number(m);
   const day = Number(d);
-  const valid =
-    year >= 1900 &&
-    year <= new Date().getFullYear() &&
-    month >= 1 &&
-    month <= 12 &&
-    day >= 1 &&
-    day <= 31;
+
+  // 実在する日付か（2月30日などを弾く）
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const real =
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day;
+
+  if (!real || year < 1900 || date.getTime() > Date.now()) {
+    return { text: trimmed, iso: "" };
+  }
 
   return {
-    text: raw.trim(),
-    iso: valid ? `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "",
+    text: `${year}年${month}月${day}日`,
+    iso: `${y}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
   };
 };
 
@@ -116,6 +131,7 @@ export async function POST(request: Request) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         ...values,
+        birthday: birthday.text,
         birthdayIso: birthday.iso,
         submittedAt: new Date().toISOString(),
         secret: process.env.CONTACT_SHARED_SECRET ?? "",

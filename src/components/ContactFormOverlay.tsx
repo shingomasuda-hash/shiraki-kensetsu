@@ -39,6 +39,8 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
   const [company, setCompany] = useState("");
 
   const configured = enabled;
+  // 生年月日に未来の日付を選べないようにする
+  const today = new Date().toISOString().slice(0, 10);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -84,6 +86,9 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
           "aria-label": field.label,
           autoComplete: field.autoComplete,
           inputMode: field.inputMode,
+          // デザイン画像の例文と同じ文字列。CSSで透明にしてあるので画面には出ない。
+          // 入力されたかどうかの判定（:placeholder-shown）に使う。
+          placeholder: field.placeholder,
           value: values[field.name],
           onChange: (event: { target: { value: string } }) =>
             setValues((prev) => ({ ...prev, [field.name]: event.target.value })),
@@ -122,24 +127,47 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
                 );
               }
 
-              return field.multiline ? (
-                <textarea
-                  {...shared}
-                  key={device}
-                  id={`${shared.id}-${device}`}
-                  className={`contact-form__input contact-form__input--${device}`}
-                  style={style}
-                  data-field={field.name}
-                  data-device={device}
-                />
-              ) : (
+              if (field.multiline) {
+                return (
+                  <textarea
+                    {...shared}
+                    key={device}
+                    id={`${shared.id}-${device}`}
+                    className={`contact-form__input contact-form__input--${device} contact-form__input--text`}
+                    style={style}
+                    data-field={field.name}
+                    data-device={device}
+                  />
+                );
+              }
+
+              const isDate = field.inputType === "date";
+
+              return (
                 <input
                   {...shared}
                   key={device}
                   id={`${shared.id}-${device}`}
-                  className={`contact-form__input contact-form__input--${device}`}
+                  className={`contact-form__input contact-form__input--${device} contact-form__input--${
+                    isDate ? "date" : "text"
+                  }`}
                   style={style}
                   type={field.inputType}
+                  min={isDate ? "1900-01-01" : undefined}
+                  max={isDate ? today : undefined}
+                  // 枠のどこを押してもカレンダーが開くようにする（非対応なら何もしない）
+                  onClick={
+                    isDate
+                      ? (event) => {
+                          const input = event.currentTarget;
+                          try {
+                            input.showPicker?.();
+                          } catch {
+                            // 対応していないブラウザでは、そのまま手入力してもらう
+                          }
+                        }
+                      : undefined
+                  }
                   data-field={field.name}
                   data-device={device}
                 />

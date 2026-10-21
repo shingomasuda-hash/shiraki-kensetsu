@@ -401,18 +401,48 @@ img {
 }
 
 /*
- * 性別などの選択欄。デザイン画像の「選択してください」を見せたいので、
- * ブラウザ既定の枠・矢印・背景を消して透明にする。
+ * 入力欄は透明で、デザイン画像の白い枠と例文をそのまま見せている。
+ * ただし入力されたあとも例文が透けて二重に見えてしまうため、
+ * 「値が入ったら枠を白で塗って、下の例文を隠す」ようにする。
+ * 白と角丸はデザインの枠と同じ（実測: PC 6px / SP 5px 相当）なので見た目は変わらない。
  */
+.contact-form__input--filled,
+.contact-form__input--text:not(:placeholder-shown),
+.contact-form__input--date:focus,
+.contact-form__input--date:valid,
+.contact-form__input--select:valid {
+  background: #ffffff;
+}
+
+/* デザイン画像の例文を見せたいので、ブラウザのプレースホルダは出さない */
+.contact-form__input::placeholder {
+  color: transparent;
+}
+
+/*
+ * 日付欄と選択欄はプレースホルダを持てないため、値の有無（:valid / :invalid）で判定する。
+ * 未選択のうちはブラウザ既定の「年/月/日」「選択してください」を隠し、
+ * デザイン画像の文字を見せる。
+ */
+.contact-form__input--date:invalid:not(:focus),
+.contact-form__input--select:invalid {
+  color: transparent;
+}
+
+/* 未入力のうちはカレンダーのアイコンも出さない（デザインの例文と重なるため） */
+.contact-form__input--date:invalid:not(:focus)::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+
+.contact-form__input--date {
+  cursor: pointer;
+}
+
+/* 選択欄はブラウザ既定の枠・矢印・背景を消して透明にする */
 .contact-form__input--select {
   -webkit-appearance: none;
   appearance: none;
   cursor: pointer;
-}
-
-/* 未選択のうちはデザイン画像の文字を見せ、選ぶと実際の値を表示する */
-.contact-form__input--select:invalid {
-  color: transparent;
 }
 
 /* 自動投稿よけの欄。画面からも読み上げからも外す。 */
@@ -430,7 +460,8 @@ img {
   margin: 0;
   padding: 0 clamp(8px, 1.2vw, 16px);
   border: 0;
-  border-radius: 8px;
+  /* デザインの入力欄と同じ角丸（PC 6px / SP 5px 相当） */
+  border-radius: 6px;
   background: transparent;
   color: #1f2937;
   font-family: inherit;

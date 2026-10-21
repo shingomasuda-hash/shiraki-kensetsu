@@ -112,7 +112,7 @@ FORM_FIELDS = [
     ("email", "メールアドレス", "email", False, "例：example@shiraki-const.jp",
      dict(left=50.911, top=42.201, width=28.971, height=5.983),
      dict(left=5.329, top=45.417, width=89.165, height=4.417)),
-    ("birthday", "生年月日", "text", False, "例：1998年4月1日",
+    ("birthday", "生年月日", "date", False, "例：1998年4月1日",
      dict(left=20.052, top=55.983, width=28.971, height=5.876),
      dict(left=5.329, top=54.167, width=89.165, height=4.417)),
     ("gender", "性別", "select", False, "選択してください",
@@ -485,7 +485,14 @@ TEMPLATE = r"""<title>白木建設 採用LP 実装プレビュー</title>
     pointer-events: none;
   }
 
-  .fld--select { -webkit-appearance: none; appearance: none; cursor: pointer; }
+  .fld--select, .fld--date { -webkit-appearance: none; appearance: none; cursor: pointer; }
+  /* 入力されたらデザインの例文を隠すため、枠を白で塗る（実装と同じ挙動） */
+  .fld--text:not(:placeholder-shown),
+  .fld--date:focus, .fld--date:valid,
+  .fld--select:valid { background: #fff; }
+  .fld::placeholder { color: transparent; }
+  .fld--date:invalid:not(:focus), .fld--select:invalid { color: transparent; }
+  .fld--date:invalid:not(:focus)::-webkit-calendar-picker-indicator { opacity: 0; }
   .fld {
     position: absolute;
     margin: 0;
@@ -695,19 +702,31 @@ function render() {
       for (const f of DATA.fields) {
         const r = f[device];
         const isSelect = f.type === 'select';
+        const isDate = f.type === 'date';
         const input = document.createElement(isSelect ? 'select' : f.multiline ? 'textarea' : 'input');
-        if (isSelect) {
+        input.className = 'fld';
+        // 全項目が必須。日付と選択欄は :valid / :invalid で入力の有無を判定する
+        input.required = true;
+
+        if (isDate) {
+          input.type = 'date';
+          input.min = '1900-01-01';
+          input.classList.add('fld--date');
+        } else if (isSelect) {
           // 未選択のうちはデザイン画像の「選択してください」を見せる
           input.appendChild(new Option('', ''));
           for (const option of (DATA.genderOptions || [])) input.appendChild(new Option(option, option));
           input.classList.add('fld--select');
-        } else if (!f.multiline) {
-          input.type = f.type;
+        } else {
+          if (!f.multiline) input.type = f.type;
+          input.classList.add('fld--text');
+          // デザイン画像の例文と同じ文字列。CSSで透明にしてあり、
+          // 入力されたかどうかの判定にだけ使う
+          input.placeholder = f.placeholder;
         }
-        input.className = 'fld';
+
         input.style.cssText = pct(r);
         input.setAttribute('aria-label', f.label);
-        input.placeholder = '';
         el.appendChild(input);
       }
       const sr = DATA.submit[device];

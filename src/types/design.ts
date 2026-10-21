@@ -103,10 +103,16 @@ export type FormFieldDefinition = {
    * input の type。
    * textarea にする場合は multiline、<select> にする場合は "select" を指定する。
    */
-  inputType: "text" | "tel" | "email" | "select";
+  inputType: "text" | "tel" | "email" | "date" | "select";
   multiline?: boolean;
   /** inputType が "select" のときの選択肢。先頭は未選択時の表示に使う。 */
   options?: string[];
+  /**
+   * デザイン画像に焼き込まれている例文と同じ文字列。
+   * 実際には透明にして見せないが、入力の有無をCSSで判定するために必要
+   * （入力されたら白で塗って、下の例文を隠す）。
+   */
+  placeholder?: string;
   autoComplete?: string;
   /** スマホのキーボードを切り替える（生年月日などの数字入力用） */
   inputMode?: "numeric";
