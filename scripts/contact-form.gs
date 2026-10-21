@@ -96,6 +96,8 @@ function doPost(e) {
       tel: String(data.tel || ''),
       email: String(data.email || ''),
       message: String(data.message || ''),
+      // Vercel が本番へ届かず控えへ回したときに true で届く
+      viaBackup: data.viaBackup === true,
     };
 
     if (!record.name || !record.email) {
@@ -107,11 +109,11 @@ function doPost(e) {
 
     // 2. 担当者への通知と、本人への自動返信
     //    どちらも、失敗しても記録は残したいので個別に捕まえて結果を書き戻す
+    //
+    //    控え側も通知を送る。Vercel は本番へ届かなかったときだけ控えへ回すので、
+    //    控えに届いた時点で二重ではなく「本番が落ちている」知らせになるため。
     var results = [
-      // 控え側は通知を送らない（本番と二重に届くのを避けるため）
-      cfg.isBackup
-        ? '通知:送信しない設定（控え）'
-        : sendSafely(function () { return notifyStaff(record); }, '通知'),
+      sendSafely(function () { return notifyStaff(record); }, '通知'),
       sendSafely(function () { return replyToSender(record); }, '自動返信'),
     ];
     updateLastMailStatus(results.join(' / '));
@@ -227,7 +229,20 @@ function notifyStaff(record) {
     throw new Error('NOTIFY_TO（通知メールの宛先）が設定されていません。設定.gs を確認してください');
   }
 
-  var lines = [
+  // 控えが受け取った応募は、本番へ届かなかったということ。
+  // 気づかないまま放置されないよう、件名と本文の先頭で知らせる。
+  var viaBackup = cfg.isBackup || record.viaBackup === true;
+
+  var lines = viaBackup
+    ? [
+        '【ご注意】本番の受信先へ届かなかったため、控えがこの応募を受け取りました。',
+        '応募内容は控えのスプレッドシート（下記リンク）に残っています。',
+        '本番側の Apps Script のデプロイと、Vercel の CONTACT_FORWARD_URL を確認してください。',
+        '',
+      ]
+    : [];
+
+  lines = lines.concat([
     '採用LPの応募フォームから新しい応募がありました。',
     '',
     '受信日時　　　: ' + formatDate(record.submittedAt),
@@ -249,7 +264,11 @@ function notifyStaff(record) {
     '　 応募者への転送・返信には使わないでください。',
     '',
     'スプレッドシート: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl(),
-  ];
+  ]);
+
+  var subject = viaBackup
+    ? '【採用LP・控えが受信】応募がありました: ' + record.name + ' 様'
+    : '【採用LP】応募がありました: ' + record.name + ' 様';
 
   var sent = [];
   var failed = [];
@@ -258,7 +277,7 @@ function notifyStaff(record) {
     try {
       MailApp.sendEmail({
         to: to[i],
-        subject: '【採用LP】応募がありました: ' + record.name + ' 様',
+        subject: subject,
         body: lines.join('\n'),
         name: cfg.senderName,
       });
@@ -371,9 +390,12 @@ function checkSettings() {
   var to = recipients(cfg.notifyTo);
 
   if (cfg.isBackup) {
-    lines.push('○ 控え（バックアップ）として設定されています。通知メールは送りません。');
-    lines.push('　 動作確認は testSheetOnly を実行してください。');
-  } else if (to.length === 0) {
+    lines.push('○ 控え（バックアップ）として設定されています。');
+    lines.push('　 本番へ届かなかった応募だけがここに入ります。');
+    lines.push('　 そのときの通知メールは、件名に「控えが受信」と付きます。');
+  }
+
+  if (to.length === 0) {
     lines.push('× NOTIFY_TO に使えるメールアドレスがありません: 「' + cfg.notifyTo + '」');
     lines.push('　 複数の宛先はカンマ区切りで1つの文字列にしてください。');
     lines.push("　 例: var NOTIFY_TO = 'a@example.com,b@example.com';");
@@ -403,12 +425,11 @@ function checkSettings() {
 }
 
 /**
- * 控え（バックアップ）側の設置確認用。
+ * メールを使わない設置確認用。
  *
- * メールは送らず、スプレッドシートへの書き込みだけを1回試します。
- * 控え側は NOTIFY_TO を空にしているため testSubmission が使えません。
- * こちらを実行し、シートに行が増えれば設置できています
- * （テスト行は手で削除してください）。
+ * スプレッドシートへの書き込みだけを1回試します。
+ * メールの残り通数を使いたくないときや、書き込み先だけ確かめたいときに。
+ * シートに行が増えれば設置できています（テスト行は手で削除してください）。
  */
 function testSheetOnly() {
   appendRow(
@@ -436,14 +457,12 @@ function testSheetOnly() {
  * 設置確認用。エディタ上でこの関数を実行すると、
  * シートへのテスト行の追加と、通知・自動返信メールの送信を1回試します。
  * 通知メールの宛先に届けば設定は完了です（テスト行は手で削除してください）。
+ *
+ * 控え側で実行したときは、通知メールの件名に「控えが受信」が付きます。
+ * これは本番が落ちたときに届く形と同じです。
  */
 function testSubmission() {
   var cfg = config();
-  if (cfg.isBackup) {
-    throw new Error(
-      '控え（バックアップ）側は通知メールを送りません。代わりに testSheetOnly を実行してください。'
-    );
-  }
   var to = recipients(cfg.notifyTo);
   if (to.length === 0) {
     throw new Error(
