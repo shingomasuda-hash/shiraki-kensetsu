@@ -71,6 +71,55 @@ const normalizeBirthday = (raw: string) => {
   };
 };
 
+/** 一時的な不調で失われないよう、少し間を空けて数回試す */
+const RETRY_DELAYS_MS = [300, 900];
+
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 保存先（Google Apps Script）へ内容を送る。
+ * 成否と、失敗した場合の理由を返す。
+ */
+async function forward(
+  url: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  let reason = "unknown";
+
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
+    if (attempt > 0) {
+      await wait(RETRY_DELAYS_MS[attempt - 1]);
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, secret: process.env.CONTACT_SHARED_SECRET ?? "" }),
+        // Apps Script は 302 を返してから本文を出すため、リダイレクトを追う
+        redirect: "follow",
+      });
+
+      if (!response.ok) {
+        reason = `HTTP ${response.status}`;
+        continue;
+      }
+
+      const text = await response.text();
+      if (text.includes('"ok":false')) {
+        // 合言葉違いなどは何度試しても同じなので、ここで打ち切る
+        return { ok: false, reason: `拒否されました: ${text.slice(0, 200)}` };
+      }
+
+      return { ok: true };
+    } catch (error) {
+      reason = String(error);
+    }
+  }
+
+  return { ok: false, reason };
+}
+
 export async function POST(request: Request) {
   let body: Record<string, unknown>;
   try {
@@ -124,34 +173,37 @@ export async function POST(request: Request) {
   }
 
   const birthday = normalizeBirthday(values.birthday ?? "");
+  const payload = {
+    ...values,
+    birthday: birthday.text,
+    birthdayIso: birthday.iso,
+    submittedAt: new Date().toISOString(),
+  };
 
-  try {
-    const response = await fetch(forwardUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        ...values,
-        birthday: birthday.text,
-        birthdayIso: birthday.iso,
-        submittedAt: new Date().toISOString(),
-        secret: process.env.CONTACT_SHARED_SECRET ?? "",
-      }),
-      // Apps Script は 302 を返してから本文を出すため、リダイレクトを追う
-      redirect: "follow",
-    });
-
-    if (!response.ok) {
-      throw new Error(`forward failed: ${response.status}`);
-    }
-
-    const text = await response.text();
-    if (text.includes('"ok":false')) {
-      throw new Error(`forward rejected: ${text.slice(0, 200)}`);
-    }
-  } catch (error) {
-    console.error("[contact] 転送に失敗しました", error);
-    return NextResponse.json({ ok: false, error: "forward_failed" }, { status: 502 });
+  const primary = await forward(forwardUrl, payload);
+  if (primary.ok) {
+    return NextResponse.json({ ok: true });
   }
 
-  return NextResponse.json({ ok: true });
+  // 本来の送り先が駄目でも、控えの送り先があればそちらへ回す
+  const backupUrl = process.env.CONTACT_BACKUP_URL?.trim();
+  if (backupUrl) {
+    const backup = await forward(backupUrl, { ...payload, viaBackup: true });
+    if (backup.ok) {
+      console.warn(
+        `[contact] 本来の送り先へ届かなかったため、控えへ記録しました: ${primary.reason}`,
+      );
+      return NextResponse.json({ ok: true, viaBackup: true });
+    }
+  }
+
+  // どこにも記録できなかった場合は、内容そのものをログへ残す。
+  // あとから手作業で拾い直せるようにするための最後の控え。
+  // （個人情報を含むため、ログの取り扱いには注意すること）
+  console.error(
+    "[contact] 保存先へ届きませんでした。次の内容を手作業で記録してください: " +
+      JSON.stringify({ reason: primary.reason, submission: payload }),
+  );
+
+  return NextResponse.json({ ok: false, error: "forward_failed" }, { status: 502 });
 }

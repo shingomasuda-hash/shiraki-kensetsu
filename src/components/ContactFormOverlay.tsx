@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { contactFormFields, contactSubmitRect } from "@/config/contactForm";
 import type { FormFieldName } from "@/types/design";
 
@@ -12,6 +12,49 @@ type ContactFormOverlayProps = {
 
 /** ブラウザからの送信先。ここから Apps Script へ中継する（同一オリジンなのでCORSなし）。 */
 const ENDPOINT = "/api/contact";
+
+/**
+ * 送信に失敗したときだけ、入力内容をこの端末に一時保存する。
+ * ページを閉じてしまっても書き直さずに済むようにするため。
+ * 送信できたら必ず消す。
+ */
+const DRAFT_KEY = "shiraki-contact-draft";
+
+const readDraft = (): Record<FormFieldName, string> | null => {
+  try {
+    const stored = window.localStorage.getItem(DRAFT_KEY);
+    if (!stored) return null;
+
+    const parsed: unknown = JSON.parse(stored);
+    if (typeof parsed !== "object" || parsed === null) return null;
+
+    // 知らない項目が混ざらないよう、定義済みの欄だけを拾う
+    const draft = { ...emptyValues };
+    for (const field of contactFormFields) {
+      const value = (parsed as Record<string, unknown>)[field.name];
+      if (typeof value === "string") draft[field.name] = value;
+    }
+    return draft;
+  } catch {
+    return null;
+  }
+};
+
+const writeDraft = (values: Record<FormFieldName, string>) => {
+  try {
+    window.localStorage.setItem(DRAFT_KEY, JSON.stringify(values));
+  } catch {
+    // 保存できない設定のブラウザでは、入力は画面上にそのまま残る
+  }
+};
+
+const clearDraft = () => {
+  try {
+    window.localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    // 消せなくても送信自体には影響しない
+  }
+};
 
 type Status = "idle" | "submitting" | "success" | "error";
 
@@ -42,6 +85,19 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
   // 生年月日に未来の日付を選べないようにする
   const today = new Date().toISOString().slice(0, 10);
 
+  // 前回送信できなかった内容が端末に残っていれば書き戻す。
+  // localStorage はサーバー側では読めないため、画面に出たあとで一度だけ行う。
+  // （サーバーと同じ空の状態で描画してから差し替えるので、表示のずれは起きない）
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
+
+    const draft = readDraft();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- 端末にだけある値の読み戻しで、初回のみ実行する
+    if (draft) setValues(draft);
+  }, []);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -65,7 +121,10 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
       setStatus("success");
       setValues(emptyValues);
       setCompany("");
+      clearDraft();
     } catch {
+      // 送り先へ届かなかった場合に備え、入力内容をこの端末へ残しておく
+      writeDraft(values);
       setStatus("error");
     }
   };
@@ -220,7 +279,8 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
       <p className="contact-form__status" role="status" aria-live="polite">
         {status === "submitting" && "送信中です…"}
         {status === "success" && "送信しました。担当者よりご連絡いたします。"}
-        {status === "error" && "送信に失敗しました。時間をおいて再度お試しください。"}
+        {status === "error" &&
+          "送信に失敗しました。入力内容はこの画面に残していますので、時間をおいて再度お試しください。"}
       </p>
     </form>
   );

@@ -480,6 +480,58 @@ test.describe("お問い合わせフォーム", () => {
     expect(geo.opacity).toBe(0);
   });
 
+  test("送信できなかった入力内容は、開き直しても書き戻される", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+
+    // 送信に失敗したときに端末へ残る控えを用意する
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        "shiraki-contact-draft",
+        JSON.stringify({
+          name: "増田 テスト",
+          kana: "マスダ テスト",
+          tel: "090-1111-2222",
+          email: "test@example.com",
+          birthday: "1998-04-01",
+          gender: "男性",
+          message: "話を聞いてみたいです",
+        }),
+      );
+    });
+
+    await page.reload();
+    await page.locator("#contact").scrollIntoViewIfNeeded();
+
+    await expect(page.locator("#contact-name-pc")).toHaveValue("増田 テスト");
+    await expect(page.locator("#contact-birthday-pc")).toHaveValue("1998-04-01");
+    await expect(page.locator("#contact-gender-pc")).toHaveValue("男性");
+    await expect(page.locator("#contact-message-pc")).toHaveValue("話を聞いてみたいです");
+
+    await page.evaluate(() => window.localStorage.removeItem("shiraki-contact-draft"));
+  });
+
+  test("控えに知らない項目が混ざっていても無視する", async ({ page }) => {
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        "shiraki-contact-draft",
+        JSON.stringify({ name: "増田 テスト", company: "spam", 知らない項目: 1 }),
+      );
+    });
+
+    await page.reload();
+    await page.locator("#contact").scrollIntoViewIfNeeded();
+
+    await expect(page.locator("#contact-name-pc")).toHaveValue("増田 テスト");
+    // おとりの欄は控えから書き戻さない
+    await expect(page.locator(".contact-form__honeypot")).toHaveValue("");
+
+    await page.evaluate(() => window.localStorage.removeItem("shiraki-contact-draft"));
+  });
+
   test("フォームはPC/SPどちらか一方の入力欄だけが表示される", async ({ page }) => {
     await page.setViewportSize({ width: 1366, height: 1000 });
     await page.goto("/");
