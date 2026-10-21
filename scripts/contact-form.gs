@@ -60,7 +60,7 @@ var HEADERS = [
   '電話番号',
   'メールアドレス',
   'メッセージ',
-  '自動返信',
+  'メール送信',
 ];
 
 function doGet() {
@@ -96,21 +96,15 @@ function doPost(e) {
     }
 
     // 1. スプレッドシートへ保存（メール送信が失敗しても記録は残す）
-    var replyResult = '';
     appendRow(record, '送信中');
 
-    // 2. 担当者への通知
-    notifyStaff(record);
-
-    // 3. 本人への自動返信
-    try {
-      replyToSender(record);
-      replyResult = '送信済み';
-    } catch (replyError) {
-      replyResult = '失敗: ' + replyError;
-    }
-
-    updateLastReplyStatus(replyResult);
+    // 2. 担当者への通知と、本人への自動返信
+    //    どちらも、失敗しても記録は残したいので個別に捕まえて結果を書き戻す
+    var results = [
+      sendSafely(function () { notifyStaff(record); }, '通知'),
+      sendSafely(function () { replyToSender(record); }, '自動返信'),
+    ];
+    updateLastMailStatus(results.join(' / '));
 
     return json({ ok: true });
   } catch (error) {
@@ -127,6 +121,15 @@ function getSheet() {
 
   if (!sheet) {
     sheet = book.insertSheet(SHEET_NAME);
+  }
+
+  if (sheet.getLastRow() > 0) {
+    // 以前の見出しのままなら更新する（列数は同じなのでデータはずれない）
+    var current = sheet.getRange(1, 1, 1, HEADERS.length).getValues()[0];
+    if (current.join('\t') !== HEADERS.join('\t')) {
+      sheet.getRange(1, 1, 1, HEADERS.length).setValues([HEADERS]);
+    }
+    return sheet;
   }
 
   if (sheet.getLastRow() === 0) {
@@ -158,14 +161,26 @@ function appendRow(record, replyStatus) {
   sheet.getRange(sheet.getLastRow(), 1).setNumberFormat('yyyy/MM/dd HH:mm:ss');
 }
 
-function updateLastReplyStatus(status) {
+function updateLastMailStatus(status) {
   var sheet = getSheet();
   sheet.getRange(sheet.getLastRow(), HEADERS.length).setValue(status);
 }
 
+/** メール送信を1件試し、結果を短い文字列で返す（シートに残す用） */
+function sendSafely(send, label) {
+  try {
+    send();
+    return label + ':送信済み';
+  } catch (error) {
+    console.error(label + ' の送信に失敗しました: ' + error);
+    return label + ':失敗(' + error + ')';
+  }
+}
+
 function notifyStaff(record) {
   if (!NOTIFY_TO) {
-    return;
+    // 黙って送られないままになるのを防ぐため、はっきり失敗させる
+    throw new Error('NOTIFY_TO（通知メールの宛先）が設定されていません');
   }
 
   var lines = [
@@ -239,11 +254,49 @@ function json(payload) {
 }
 
 /**
+ * 設定の確認用。エディタ上でこの関数を実行し、下の「実行ログ」を見てください。
+ * 宛先の設定漏れや、その日に送れるメールの残り通数が分かります。
+ */
+function checkSettings() {
+  var lines = [];
+
+  if (!NOTIFY_TO) {
+    lines.push('× NOTIFY_TO が空です。通知メールの宛先を設定してください。');
+  } else if (NOTIFY_TO.indexOf('@') === -1) {
+    lines.push('× NOTIFY_TO がメールアドレスの形式ではありません: ' + NOTIFY_TO);
+  } else {
+    lines.push('○ 通知メールの宛先: ' + NOTIFY_TO);
+  }
+
+  if (!SHARED_SECRET) {
+    lines.push('△ SHARED_SECRET が空です。URLを知っていれば誰でも送信できる状態です。');
+  } else {
+    lines.push('○ 合言葉は設定済みです（Vercel の CONTACT_SHARED_SECRET と同じ値か確認してください）');
+  }
+
+  try {
+    lines.push('○ 本日あと ' + MailApp.getRemainingDailyQuota() + ' 通送信できます');
+  } catch (error) {
+    lines.push('× メールの権限がありません。一度 testSubmission を実行して承認してください: ' + error);
+  }
+
+  var message = lines.join('\n');
+  Logger.log(message);
+  return message;
+}
+
+/**
  * 設置確認用。エディタ上でこの関数を実行すると、
  * シートへのテスト行の追加と、通知・自動返信メールの送信を1回試します。
  * NOTIFY_TO 宛に届けば設定は完了です（テスト行は手で削除してください）。
  */
 function testSubmission() {
+  if (!NOTIFY_TO) {
+    throw new Error(
+      'NOTIFY_TO（通知メールの宛先）が未設定です。ファイル上部の設定を入力してから実行してください。'
+    );
+  }
+
   doPost({
     postData: {
       contents: JSON.stringify({
