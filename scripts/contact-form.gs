@@ -51,6 +51,7 @@ function config() {
       typeof COMPANY_SIGNATURE !== 'undefined' && COMPANY_SIGNATURE
         ? String(COMPANY_SIGNATURE)
         : '',
+    isBackup: typeof IS_BACKUP !== 'undefined' && IS_BACKUP === true,
     settingsFileFound: typeof NOTIFY_TO !== 'undefined',
   };
 }
@@ -107,7 +108,10 @@ function doPost(e) {
     // 2. 担当者への通知と、本人への自動返信
     //    どちらも、失敗しても記録は残したいので個別に捕まえて結果を書き戻す
     var results = [
-      sendSafely(function () { notifyStaff(record); }, '通知'),
+      // 控え側は通知を送らない（本番と二重に届くのを避けるため）
+      cfg.isBackup
+        ? '通知:送信しない設定（控え）'
+        : sendSafely(function () { notifyStaff(record); }, '通知'),
       sendSafely(function () { replyToSender(record); }, '自動返信'),
     ];
     updateLastMailStatus(results.join(' / '));
@@ -274,7 +278,10 @@ function checkSettings() {
     lines.push('× 設定ファイル（設定.gs）が見つかりません。作成してください。');
   }
 
-  if (!cfg.notifyTo) {
+  if (cfg.isBackup) {
+    lines.push('○ 控え（バックアップ）として設定されています。通知メールは送りません。');
+    lines.push('　 動作確認は testSheetOnly を実行してください。');
+  } else if (!cfg.notifyTo) {
     lines.push('× NOTIFY_TO が空です。通知メールの宛先を設定してください。');
   } else if (cfg.notifyTo.indexOf('@') === -1) {
     lines.push('× NOTIFY_TO がメールアドレスの形式ではありません: ' + cfg.notifyTo);
@@ -300,12 +307,47 @@ function checkSettings() {
 }
 
 /**
+ * 控え（バックアップ）側の設置確認用。
+ *
+ * メールは送らず、スプレッドシートへの書き込みだけを1回試します。
+ * 控え側は NOTIFY_TO を空にしているため testSubmission が使えません。
+ * こちらを実行し、シートに行が増えれば設置できています
+ * （テスト行は手で削除してください）。
+ */
+function testSheetOnly() {
+  appendRow(
+    {
+      submittedAt: new Date(),
+      name: 'テスト 太郎',
+      kana: 'テスト タロウ',
+      birthday: '1998年4月1日',
+      birthdayIso: '1998-04-01',
+      gender: '男性',
+      tel: '090-1234-5678',
+      email: 'test@example.com',
+      message: 'これは控えの設置確認用のテスト行です。',
+    },
+    'テスト（メールは送っていません）'
+  );
+
+  var message =
+    'シートにテスト行を追加しました。確認できたら、その行を手で削除してください。';
+  Logger.log(message);
+  return message;
+}
+
+/**
  * 設置確認用。エディタ上でこの関数を実行すると、
  * シートへのテスト行の追加と、通知・自動返信メールの送信を1回試します。
  * 通知メールの宛先に届けば設定は完了です（テスト行は手で削除してください）。
  */
 function testSubmission() {
   var cfg = config();
+  if (cfg.isBackup) {
+    throw new Error(
+      '控え（バックアップ）側は通知メールを送りません。代わりに testSheetOnly を実行してください。'
+    );
+  }
   if (!cfg.notifyTo) {
     throw new Error(
       'NOTIFY_TO（通知メールの宛先）が未設定です。設定.gs を作成・入力してから実行してください。'
