@@ -111,8 +111,8 @@ function doPost(e) {
       // 控え側は通知を送らない（本番と二重に届くのを避けるため）
       cfg.isBackup
         ? '通知:送信しない設定（控え）'
-        : sendSafely(function () { notifyStaff(record); }, '通知'),
-      sendSafely(function () { replyToSender(record); }, '自動返信'),
+        : sendSafely(function () { return notifyStaff(record); }, '通知'),
+      sendSafely(function () { return replyToSender(record); }, '自動返信'),
     ];
     updateLastMailStatus(results.join(' / '));
 
@@ -177,26 +177,58 @@ function updateLastMailStatus(status) {
   sheet.getRange(sheet.getLastRow(), HEADERS.length).setValue(status);
 }
 
-/** メール送信を1件試し、結果を短い文字列で返す（シートに残す用） */
+/**
+ * メール送信を1件試し、結果を短い文字列で返す（シートに残す用）。
+ * send が文字列を返した場合は、その内容も添える（宛先ごとの結果など）。
+ */
 function sendSafely(send, label) {
   try {
-    send();
-    return label + ':送信済み';
+    var detail = send();
+    return label + ':送信済み' + (detail ? '（' + detail + '）' : '');
   } catch (error) {
     console.error(label + ' の送信に失敗しました: ' + error);
     return label + ':失敗(' + error + ')';
   }
 }
 
+/**
+ * 通知先の文字列を宛先の配列にする。
+ *
+ * カンマ・セミコロン・改行・全角の読点など、どの区切りで書かれていても
+ * 拾えるようにしている（設定の書き方で通知が1件も届かなくなるのを防ぐため）。
+ */
+function recipients(raw) {
+  return String(raw || '')
+    .split(/[,;\s、，]+/)
+    .map(function (value) {
+      return value.trim();
+    })
+    .filter(function (value) {
+      return value.indexOf('@') > 0;
+    });
+}
+
+/**
+ * 採用担当への通知メール（管理用）。
+ *
+ * スプレッドシートのリンクなど、管理側だけが見るべき内容が入るため、
+ * 応募者のアドレスは宛先にも返信先にも入れない。
+ * 返信先を応募者にしていると、担当者が「返信」を押したときに
+ * この管理用の本文がそのまま応募者へ渡ってしまうため。
+ *
+ * 宛先は1件ずつ別々に送る。まとめて送ると、1つの宛先で弾かれたときに
+ * ほかの宛先にも届かなくなるため。どこへ届いたかは戻り値でシートに残す。
+ */
 function notifyStaff(record) {
   var cfg = config();
-  if (!cfg.notifyTo) {
+  var to = recipients(cfg.notifyTo);
+  if (to.length === 0) {
     // 黙って送られないままになるのを防ぐため、はっきり失敗させる
     throw new Error('NOTIFY_TO（通知メールの宛先）が設定されていません。設定.gs を確認してください');
   }
 
   var lines = [
-    '採用LPのお問い合わせフォームから新しい応募がありました。',
+    '採用LPの応募フォームから新しい応募がありました。',
     '',
     '受信日時　　　: ' + formatDate(record.submittedAt),
     'お名前　　　　: ' + record.name,
@@ -210,26 +242,74 @@ function notifyStaff(record) {
     record.message,
     '',
     '────────────────────',
+    '応募者へは、受付のお礼メールを自動でお送りしています。',
+    'ご連絡の際は ' + record.email + ' 宛に新しいメールを作成してください。',
+    '',
+    '※ このメールは管理用です。スプレッドシートのリンクを含むため、',
+    '　 応募者への転送・返信には使わないでください。',
+    '',
     'スプレッドシート: ' + SpreadsheetApp.getActiveSpreadsheet().getUrl(),
   ];
 
-  MailApp.sendEmail({
-    to: cfg.notifyTo,
-    subject: '【採用LP】お問い合わせ: ' + record.name + ' 様',
-    body: lines.join('\n'),
-    name: cfg.senderName,
-    replyTo: record.email,
-  });
+  var sent = [];
+  var failed = [];
+
+  for (var i = 0; i < to.length; i += 1) {
+    try {
+      MailApp.sendEmail({
+        to: to[i],
+        subject: '【採用LP】応募がありました: ' + record.name + ' 様',
+        body: lines.join('\n'),
+        name: cfg.senderName,
+      });
+      sent.push(to[i]);
+    } catch (error) {
+      failed.push(to[i] + '(' + error + ')');
+    }
+  }
+
+  if (sent.length === 0) {
+    throw new Error('どの宛先にも送れませんでした: ' + failed.join(' / '));
+  }
+
+  if (failed.length > 0) {
+    return sent.join(' ') + ' へ送信 / 届かなかった宛先: ' + failed.join(' / ');
+  }
+
+  return sent.join(' ');
 }
 
+/**
+ * 応募者へのお礼メール（受付完了のお知らせ）。
+ *
+ * 応募者が受け取るのはこのメールだけ。管理用の情報（スプレッドシートの
+ * リンクなど）は一切載せない。
+ *
+ * 返信先は採用担当（NOTIFY_TO の先頭）にしておく。応募者が返信したときに、
+ * スクリプトの持ち主のアドレスではなく採用担当へ届くようにするため。
+ */
 function replyToSender(record) {
   var cfg = config();
+  var staff = recipients(cfg.notifyTo);
+
   var lines = [
     record.name + ' 様',
     '',
-    'この度は白木建設株式会社へお問い合わせいただき、誠にありがとうございます。',
-    '以下の内容で受け付けいたしました。担当者より改めてご連絡いたします。',
+    'この度は白木建設株式会社の採用にご応募いただき、',
+    '誠にありがとうございます。',
     '',
+    '下記の内容で、たしかに受け付けいたしました。',
+    'ご応募いただいたことに、あらためて御礼申し上げます。',
+    '',
+    '【今後の流れ】',
+    '　1. 採用担当にて、ご応募の内容を確認いたします。',
+    '　2. 3営業日以内に、担当者よりお電話またはメールでご連絡いたします。',
+    '　3. ご都合をうかがったうえで、面談・現場見学へお進みいただきます。',
+    '',
+    '　お急ぎの事情がある場合や、ご連絡のつきやすい時間帯がある場合は、',
+    '　このメールにそのままご返信ください。採用担当へ届きます。',
+    '',
+    '【ご応募の内容】',
     '────────────────────',
     'お名前　　　　: ' + record.name,
     'フリガナ　　　: ' + record.kana,
@@ -242,18 +322,28 @@ function replyToSender(record) {
     record.message,
     '────────────────────',
     '',
-    '※ このメールは自動送信です。ご返信いただいても確認できない場合があります。',
-    '　 お急ぎの場合は、お手数ですが担当者からの連絡をお待ちください。',
+    'お会いできますことを、担当者一同楽しみにしております。',
+    'どうぞよろしくお願いいたします。',
+    '',
+    '※ このメールは、ご応募を受け付けた時点で自動的にお送りしています。',
+    '　 3営業日を過ぎてもご連絡がない場合や、お心当たりのない場合は、',
+    '　 お手数ですがこのメールへご返信ください。',
     '',
     cfg.signature,
   ];
 
-  MailApp.sendEmail({
+  var options = {
     to: record.email,
-    subject: '【白木建設株式会社】お問い合わせありがとうございます',
+    subject: '【白木建設株式会社】ご応募ありがとうございます（受付完了）',
     body: lines.join('\n'),
     name: cfg.senderName,
-  });
+  };
+
+  if (staff.length > 0) {
+    options.replyTo = staff[0];
+  }
+
+  MailApp.sendEmail(options);
 }
 
 function formatDate(date) {
@@ -278,15 +368,21 @@ function checkSettings() {
     lines.push('× 設定ファイル（設定.gs）が見つかりません。作成してください。');
   }
 
+  var to = recipients(cfg.notifyTo);
+
   if (cfg.isBackup) {
     lines.push('○ 控え（バックアップ）として設定されています。通知メールは送りません。');
     lines.push('　 動作確認は testSheetOnly を実行してください。');
-  } else if (!cfg.notifyTo) {
-    lines.push('× NOTIFY_TO が空です。通知メールの宛先を設定してください。');
-  } else if (cfg.notifyTo.indexOf('@') === -1) {
-    lines.push('× NOTIFY_TO がメールアドレスの形式ではありません: ' + cfg.notifyTo);
+  } else if (to.length === 0) {
+    lines.push('× NOTIFY_TO に使えるメールアドレスがありません: 「' + cfg.notifyTo + '」');
+    lines.push('　 複数の宛先はカンマ区切りで1つの文字列にしてください。');
+    lines.push("　 例: var NOTIFY_TO = 'a@example.com,b@example.com';");
   } else {
-    lines.push('○ 通知メールの宛先: ' + cfg.notifyTo);
+    lines.push('○ 通知メールの宛先は ' + to.length + ' 件です（1件ずつ別々に送ります）');
+    for (var i = 0; i < to.length; i += 1) {
+      lines.push('　 ' + (i + 1) + '. ' + to[i]);
+    }
+    lines.push('　 ※ 届かないときは、宛先側の「迷惑メール」と「すべてのメール」も見てください。');
   }
 
   if (!cfg.secret) {
@@ -348,7 +444,8 @@ function testSubmission() {
       '控え（バックアップ）側は通知メールを送りません。代わりに testSheetOnly を実行してください。'
     );
   }
-  if (!cfg.notifyTo) {
+  var to = recipients(cfg.notifyTo);
+  if (to.length === 0) {
     throw new Error(
       'NOTIFY_TO（通知メールの宛先）が未設定です。設定.gs を作成・入力してから実行してください。'
     );
@@ -364,7 +461,7 @@ function testSubmission() {
         birthdayIso: '1998-04-01',
         gender: '男性',
         tel: '090-1234-5678',
-        email: cfg.notifyTo.split(',')[0],
+        email: to[0],
         message: 'これは設置確認用のテスト送信です。',
         submittedAt: new Date().toISOString(),
       }),
