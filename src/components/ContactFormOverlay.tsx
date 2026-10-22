@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { contactFormFields, contactSubmitRect } from "@/config/contactForm";
+import { pushDataLayerEvent } from "@/lib/analytics";
 import type { FormFieldName } from "@/types/design";
 
 type ContactFormOverlayProps = {
@@ -122,6 +123,8 @@ export function ContactFormOverlay({ enabled, debug }: ContactFormOverlayProps) 
       setValues(emptyValues);
       setCompany("");
       clearDraft();
+      // 応募の計測用。GTM側でこのイベントをコンバージョンとして拾う。
+      pushDataLayerEvent("form_submit_success");
     } catch {
       // 送り先へ届かなかった場合に備え、入力内容をこの端末へ残しておく
       writeDraft(values);

@@ -374,6 +374,40 @@ test.describe("お問い合わせフォーム", () => {
     }
   });
 
+  test("送信に成功すると計測イベントを1件積む", async ({ page }) => {
+    test.skip(!endpointConfigured, "送信先が未設定だと送信ボタンが無効のため");
+
+    await page.route("**/api/contact", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ok: true }),
+      }),
+    );
+
+    await page.setViewportSize({ width: 1366, height: 1000 });
+    await page.goto("/");
+    await page.locator("#contact").scrollIntoViewIfNeeded();
+
+    await page.fill("#contact-name-pc", "増田 テスト");
+    await page.fill("#contact-kana-pc", "マスダ テスト");
+    await page.fill("#contact-tel-pc", "090-1234-5678");
+    await page.fill("#contact-email-pc", "test@example.com");
+    await page.fill("#contact-birthday-pc", "2000-01-09");
+    await page.selectOption("#contact-gender-pc", "男性");
+    await page.fill("#contact-message-pc", "テストです");
+
+    await page.click(".contact-form__submit--pc");
+
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => (window.dataLayer ?? []).filter((e) => e.event === "form_submit_success").length,
+        ),
+      )
+      .toBe(1);
+  });
+
   test("全7項目が必須で、デザインどおりの順に並んでいる", async ({ page }) => {
     for (const [device, width] of [
       ["pc", 1366],
@@ -655,6 +689,28 @@ test.describe("お問い合わせの受け口（/api/contact）", () => {
     } else {
       expect(response.status()).toBe(503);
       expect((await response.json()).error).toBe("not_configured");
+    }
+  });
+});
+
+test.describe("計測タグ（Googleタグマネージャー）", () => {
+  const gtmId = process.env.NEXT_PUBLIC_GTM_ID?.trim();
+
+  test(`コンテナIDが${gtmId ? "設定済みなら出力される" : "未設定なら何も出力しない"}`, async ({
+    page,
+  }) => {
+    await page.goto("/");
+    const html = await page.content();
+
+    if (gtmId) {
+      // noscript（JSが無効な閲覧者の分）とスクリプト本体の両方
+      expect(html).toContain(`googletagmanager.com/ns.html?id=${gtmId}`);
+      await expect
+        .poll(() => page.evaluate(() => Array.isArray(window.dataLayer)))
+        .toBe(true);
+    } else {
+      // 未設定のまま既定のIDを埋め込んだりしない
+      expect(html).not.toContain("googletagmanager.com");
     }
   });
 });
