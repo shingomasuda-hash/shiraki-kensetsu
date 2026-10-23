@@ -15,6 +15,7 @@ HTML/CSSでの再現は行わない（フォーム入力欄と動画のみ、後
 from __future__ import annotations
 
 import json
+import math
 import shutil
 import sys
 import time
@@ -152,6 +153,42 @@ CONTACT_FORM_EDITS = {
     ),
 }
 
+# ---------------------------------------------------------------------------
+# 募集要項（給与）の描き替え
+#
+# 初任給の2行から「（時間外手当◯万◯,000円含む）」を外し、金額のうしろを
+# 「〜」にする。
+#
+#   高卒：26万1,000円（時間外手当5万1,000円含む）
+#        -> 高卒：26万1,000円〜
+#
+# 座標は書き出された画像の実寸基準（ref_w）。別の解像度で書き出し直された
+# 場合も幅から自動換算する。
+# 元データ側で文言が直されたら、この描き替えは不要になる。
+#
+#   money_right … 「円」の右端x（ここのうしろに「〜」を描く）
+#   erase_to    … 「）」の右端x（ここまでを消す）
+#   band        … その行の文字の上端y・下端y
+# ---------------------------------------------------------------------------
+REQUIREMENTS_EDITS = {
+    "pc": dict(
+        ref_w=2048,
+        glyph_w=21,
+        lines=[
+            dict(money_right=794, erase_to=1164, band=(832, 856)),
+            dict(money_right=877, erase_to=1208, band=(871, 896)),
+        ],
+    ),
+    "sp": dict(
+        ref_w=750,
+        glyph_w=15,
+        lines=[
+            dict(money_right=301, erase_to=623, band=(910, 936)),
+            dict(money_right=373, erase_to=658, band=(950, 976)),
+        ],
+    ),
+}
+
 FONT_DIR = ROOT / "scripts" / "fonts"
 BIRTHDAY_LABEL = "生年月日"
 BIRTHDAY_PLACEHOLDER = "例：1998年4月1日"
@@ -159,6 +196,7 @@ BADGE_TEXT = "必須"
 BADGE_COLOR = (21, 171, 64)
 LABEL_COLOR = (255, 255, 255)
 PLACEHOLDER_COLOR = (150, 150, 150)
+TEXT_COLOR = (0, 0, 0)
 
 
 def _font(weight: int, size: float) -> ImageFont.FreeTypeFont:
@@ -233,6 +271,75 @@ def apply_contact_form_edits(image: Image.Image, device: str) -> Image.Image:
               fill=PLACEHOLDER_COLOR, anchor="lm")
 
     log(f"{device.upper()} お問い合わせ: 年齢→生年月日の書き替えと必須バッジを反映しました")
+    return out
+
+
+def _has_ink(image: Image.Image, area: tuple[int, int, int, int]) -> bool:
+    """その範囲に文字（地色より暗い点）があるか。
+
+    デザインが差し替わって文字の位置が変わったときに、
+    何も無いところを塗り潰してしまわないための確認。
+    """
+    patch = image.crop(area).convert("L")
+    return min(patch.getdata()) < 160
+
+
+def _paper_color(image: Image.Image, area: tuple[int, int, int, int]) -> tuple[int, int, int]:
+    """消し込みに使う地色。範囲のすぐ右の、文字が無いところから採る。"""
+    x0, y0, x1, y1 = area
+    width = max(2, (x1 - x0) // 10)
+    sample = image.crop((x1, y0, min(image.width, x1 + width), y1)).convert("RGB")
+    r, g, b = (round(v) for v in ImageStat.Stat(sample).median)
+    return (r, g, b)
+
+
+def _draw_wave_dash(
+    draw: ImageDraw.ImageDraw, x: float, cy: float, width: float, stroke: float
+) -> None:
+    """「〜」を描く。
+
+    同梱しているフォントは必要な字だけのサブセットで「〜」を持たないため、
+    波線として直接描く。左で上がり、右で下がる、ふつうの波ダッシュの形。
+    """
+    steps = 24
+    amp = width * 0.15
+    points = [
+        (x + width * i / steps, cy - amp * math.sin(2 * math.pi * i / steps))
+        for i in range(steps + 1)
+    ]
+    draw.line(points, fill=TEXT_COLOR, width=max(1, round(stroke)), joint="curve")
+
+
+def apply_requirements_edits(image: Image.Image, device: str) -> Image.Image:
+    """初任給の「（時間外手当◯円含む）」を外し、金額のうしろを「〜」にする。"""
+    cfg = REQUIREMENTS_EDITS[device]
+    scale = image.width / cfg["ref_w"]
+    px = lambda v: round(v * scale)
+
+    out = image.convert("RGB").copy()
+    draw = ImageDraw.Draw(out)
+    glyph_w = cfg["glyph_w"] * scale
+
+    for line in cfg["lines"]:
+        top, bottom = px(line["band"][0]), px(line["band"][1])
+        money_right, erase_to = px(line["money_right"]), px(line["erase_to"])
+        pad = max(1, px(4))
+        area = (money_right + pad, top - pad, erase_to + pad, bottom + pad)
+
+        if not _has_ink(out, area):
+            log(f"WARNING: {device.upper()} 募集要項: 消す範囲に文字がありません。座標を確認してください")
+            continue
+
+        draw.rectangle(area, fill=_paper_color(out, area))
+        _draw_wave_dash(
+            draw,
+            money_right + glyph_w * 0.3,
+            (top + bottom) / 2,
+            glyph_w * 0.95,
+            glyph_w * 0.13,
+        )
+
+    log(f"{device.upper()} 募集要項: 初任給の時間外手当の注記を外し、「〜」にしました")
     return out
 
 
@@ -335,6 +442,9 @@ def generate_device(
 
         if section["id"] == "contact":
             crop = apply_contact_form_edits(crop, device)
+
+        if section["id"] == "requirements":
+            crop = apply_requirements_edits(crop, device)
 
         png_path = tmp_device_dir / f"{section['file']}.png"
         webp_path = out_dir / f"{section['file']}.webp"

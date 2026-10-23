@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-20T09:32:52+0000",
+  "generatedAt": "2026-10-23T10:17:41+0000",
   "sections": [
     {
       "id": "hero",
@@ -143,14 +143,14 @@
         "file": "/design/pc/09-requirements.webp",
         "width": 2048,
         "height": 1494,
-        "bytes": 135524,
+        "bytes": 129110,
         "bottomColor": "#dfede3"
       },
       "sp": {
         "file": "/design/sp/09-requirements.webp",
         "width": 750,
         "height": 1704,
-        "bytes": 86404,
+        "bytes": 80160,
         "bottomColor": "#e6f6eb"
       }
     },
