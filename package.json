@@ -11,6 +11,7 @@
     "generate:assets": "python3 scripts/generate_design_assets.py"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "next": "^16.2.10",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
