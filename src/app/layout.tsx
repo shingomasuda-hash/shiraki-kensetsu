@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { Analytics } from "@vercel/analytics/next";
 import { gtmId } from "@/config/analytics";
 import { siteLinks } from "@/config/links";
 import "./globals.css";
@@ -62,6 +63,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           </>
         ) : null}
         {children}
+        <Analytics />
       </body>
     </html>
   );
