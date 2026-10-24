@@ -1,4 +1,5 @@
 import { ResponsiveDesignSection } from "@/components/ResponsiveDesignSection";
+import { StickyCta } from "@/components/StickyCta";
 import { sections } from "@/config/sections";
 
 type RecruitmentPageProps = {
@@ -14,6 +15,7 @@ export function RecruitmentPage({ debug }: RecruitmentPageProps) {
           <ResponsiveDesignSection key={section.id} section={section} debug={debug} />
         ))}
       </div>
+      <StickyCta />
     </div>
   );
 }

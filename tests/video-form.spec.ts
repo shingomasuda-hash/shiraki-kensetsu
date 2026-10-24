@@ -714,3 +714,60 @@ test.describe("計測タグ（Googleタグマネージャー）", () => {
     }
   });
 });
+
+test.describe("画面下の応募ボタン", () => {
+  // ページ全体に滑らかスクロールが効いているため、待たずに測ると途中の値を拾う
+  const atBottom = async (page: import("@playwright/test").Page) => {
+    await page.evaluate(() =>
+      window.scrollTo({ top: document.body.scrollHeight, behavior: "instant" }),
+    );
+    await page.waitForFunction(
+      () => window.scrollY + window.innerHeight >= document.body.scrollHeight - 1,
+    );
+  };
+
+  for (const [device, width, height] of [
+    ["pc", 1366, 820],
+    ["sp", 390, 780],
+  ] as const) {
+    test(`${device.toUpperCase()}: どこまでスクロールしても出ている`, async ({ page }) => {
+      await page.setViewportSize({ width, height });
+      await page.goto("/");
+
+      const bar = page.locator(".sticky-cta");
+      await expect(bar).toBeVisible();
+
+      await page.locator("#contact").scrollIntoViewIfNeeded();
+      await expect(bar).toBeInViewport();
+
+      await atBottom(page);
+      await expect(bar).toBeInViewport();
+    });
+  }
+
+  test("2つのボタンともお問い合わせへ移動する", async ({ page }) => {
+    await page.goto("/");
+    const buttons = page.locator(".sticky-cta__button");
+    await expect(buttons).toHaveCount(2);
+    await expect(buttons.nth(0)).toHaveText("相談してみる");
+    await expect(buttons.nth(1)).toHaveText("見学してみる");
+
+    for (let i = 0; i < 2; i += 1) {
+      await expect(buttons.nth(i)).toHaveAttribute("href", "#contact");
+    }
+  });
+
+  test("最後まで読んでも、送信ボタンを覆い隠さない", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 780 });
+    await page.goto("/");
+    await page.locator("#contact").scrollIntoViewIfNeeded();
+    await atBottom(page);
+
+    const submit = await page.locator(".contact-form__submit--sp").boundingBox();
+    const bar = await page.locator(".sticky-cta").boundingBox();
+    expect(submit).not.toBeNull();
+    expect(bar).not.toBeNull();
+    // 送信ボタンの下端が、固定ボタンの上端より上にある
+    expect(submit!.y + submit!.height).toBeLessThanOrEqual(bar!.y);
+  });
+});
